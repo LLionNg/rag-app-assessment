@@ -3,7 +3,7 @@
 Capture the terminal output of the demo queries here, one image per query:
 
 ```bash
-python -m src.main --demo
+uv run rag-app --demo
 ```
 
 Take them with a real model configured (`llm.provider: azure_openai`), not with

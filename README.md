@@ -26,29 +26,30 @@ Orchestration is a sequential `asyncio` handoff with **no orchestration framewor
 
 ## Quick start
 
+The project is uv-managed. `uv sync` provisions the interpreter pinned in `.python-version`, creates `.venv`, and installs the exact versions in `uv.lock` plus the project itself:
+
 ```bash
-uv venv && uv pip install -e ".[dev]"
+uv sync
 ```
 
 ```bash
-python -m src.main "What is the policy on international travel?"
+uv run rag-app "What is the policy on international travel?"
 ```
 
 The default configuration uses the **mock LLM provider**, so this runs with no API key and no network access. It exercises the real agent loop, the real tool call, and the real retriever — only the model's wording is a placeholder.
 
-Other entry points:
+| Command | What it does |
+| --- | --- |
+| `uv run rag-app "<question>"` | answer one question |
+| `uv run rag-app --demo` | run every query under `demo.queries` |
+| `uv run rag-app --interactive` | ask questions in a loop |
+| `uv run rag-app --no-snippets` | hide the retrieval trace |
+| `uv run rag-app -c other.yml ...` | use a different config file |
+| `uv run pytest` | run the tests |
+| `uv run ruff check src tests` | lint |
+| `uv run ruff format src tests` | format |
 
-```bash
-python -m src.main --demo
-```
-
-```bash
-python -m src.main --interactive
-```
-
-```bash
-pytest
-```
+Every command runs inside the locked environment, so there is nothing to activate. `uv run python -m src.main ...` is equivalent to `uv run rag-app ...`.
 
 ## Connecting a real model
 
