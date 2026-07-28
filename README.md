@@ -129,7 +129,7 @@ Only the orchestration layer differs. Everything else — providers, retrieval, 
 
 ## Sample output
 
-Screenshots for several queries are in [`docs/screenshots/`](docs/screenshots/).
+`docs/screenshots/` is where the per-query screenshots go. They should be captured with a real model configured — the mock provider's answers are placeholders and would not show the synthesis quality the Report Generator is judged on.
 
 ## Notes and scope
 
