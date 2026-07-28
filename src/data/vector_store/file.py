@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-import hashlib
-from collections.abc import Sequence
 from pathlib import Path
 
 import numpy as np
@@ -9,19 +7,16 @@ from loguru import logger
 from pydantic import ValidationError
 
 from src.core.config import VectorStoreConfig
-from src.core.types import Chunk, EmbeddingManifest, IndexFingerprint
+from src.core.types import EmbeddingManifest, IndexFingerprint
+from src.data.vector_store.base import VectorStore
 
 
-def fingerprint_chunks(chunks: Sequence[Chunk]) -> str:
-    """Digest the exact text that gets embedded."""
-    digest = hashlib.sha256()
-    for chunk in chunks:
-        digest.update(f"{chunk.id}\t{chunk.text}\n".encode())
-    return digest.hexdigest()
+class FileVectorStore(VectorStore):
+    """Embeddings persisted as a `.npz` matrix beside a JSON manifest.
 
-
-class FileVectorStore:
-    """Embeddings persisted as a `.npz` matrix beside a JSON manifest."""
+    The file-backed stand-in for a pgvector table: small corpora do not need a
+    database, but they still benefit from not re-embedding on every start.
+    """
 
     def __init__(self, config: VectorStoreConfig) -> None:
         self.config = config
@@ -34,8 +29,7 @@ class FileVectorStore:
     def manifest_path(self) -> Path:
         return self.config.path / f"{self.config.name}.json"
 
-    def read(self, fingerprint: IndexFingerprint) -> np.ndarray | None:
-        """Return cached vectors, or None when they are absent or stale."""
+    async def read(self, fingerprint: IndexFingerprint) -> np.ndarray | None:
         if self.config.refresh:
             logger.info("Index refresh requested, re-embedding from scratch")
             return None
@@ -76,7 +70,7 @@ class FileVectorStore:
         )
         return matrix
 
-    def write(self, manifest: EmbeddingManifest, matrix: np.ndarray) -> None:
+    async def write(self, manifest: EmbeddingManifest, matrix: np.ndarray) -> None:
         self.config.path.mkdir(parents=True, exist_ok=True)
         np.savez_compressed(self.vectors_path, vectors=matrix)
         self.manifest_path.write_text(

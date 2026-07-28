@@ -14,8 +14,9 @@ from src.core.config import (
 )
 from src.core.exceptions import ProviderError
 from src.core.types import Chunk, EmbeddingManifest, IndexFingerprint
+from src.data.vector_store.base import fingerprint_chunks
+from src.data.vector_store.file import FileVectorStore
 from src.retrieval.semantic import SemanticRetriever
-from src.retrieval.vector_store import FileVectorStore, fingerprint_chunks
 from tests.conftest import StubEmbeddingProvider, make_stub_embedder
 
 DIM = 1024
@@ -49,35 +50,35 @@ def test_fingerprint_changes_when_chunk_text_changes(chunks: list[Chunk]):
     assert fingerprint_chunks(chunks) != fingerprint_chunks(edited)
 
 
-def test_read_returns_none_before_anything_is_written(
+async def test_read_returns_none_before_anything_is_written(
     tmp_path: Path, chunks: list[Chunk]
 ):
-    assert _store(tmp_path).read(_fingerprint(chunks)) is None
+    assert await _store(tmp_path).read(_fingerprint(chunks)) is None
 
 
-def test_round_trips_vectors(tmp_path: Path, chunks: list[Chunk]):
+async def test_round_trips_vectors(tmp_path: Path, chunks: list[Chunk]):
     store = _store(tmp_path)
     fingerprint = _fingerprint(chunks)
     matrix = np.random.default_rng(1).normal(size=(len(chunks), DIM)).astype(np.float32)
 
-    store.write(
+    await store.write(
         EmbeddingManifest(
             fingerprint=fingerprint, chunk_ids=[chunk.id for chunk in chunks]
         ),
         matrix,
     )
-    loaded = store.read(fingerprint)
+    loaded = await store.read(fingerprint)
 
     assert store.vectors_path.is_file() and store.manifest_path.is_file()
     assert loaded is not None
     assert np.array_equal(loaded, matrix)
 
 
-def test_stale_fingerprint_is_rejected(tmp_path: Path, chunks: list[Chunk]):
+async def test_stale_fingerprint_is_rejected(tmp_path: Path, chunks: list[Chunk]):
     store = _store(tmp_path)
     fingerprint = _fingerprint(chunks)
     matrix = np.zeros((len(chunks), DIM), dtype=np.float32)
-    store.write(
+    await store.write(
         EmbeddingManifest(
             fingerprint=fingerprint, chunk_ids=[chunk.id for chunk in chunks]
         ),
@@ -86,20 +87,20 @@ def test_stale_fingerprint_is_rejected(tmp_path: Path, chunks: list[Chunk]):
 
     other_model = fingerprint.model_copy(update={"model": "BAAI/bge-m3"})
 
-    assert store.read(other_model) is None
+    assert await store.read(other_model) is None
 
 
-def test_refresh_ignores_a_valid_index(tmp_path: Path, chunks: list[Chunk]):
+async def test_refresh_ignores_a_valid_index(tmp_path: Path, chunks: list[Chunk]):
     fingerprint = _fingerprint(chunks)
     matrix = np.zeros((len(chunks), DIM), dtype=np.float32)
-    _store(tmp_path).write(
+    await _store(tmp_path).write(
         EmbeddingManifest(
             fingerprint=fingerprint, chunk_ids=[chunk.id for chunk in chunks]
         ),
         matrix,
     )
 
-    assert _store(tmp_path, refresh=True).read(fingerprint) is None
+    assert await _store(tmp_path, refresh=True).read(fingerprint) is None
 
 
 async def test_retriever_embeds_once_then_reuses_the_index(

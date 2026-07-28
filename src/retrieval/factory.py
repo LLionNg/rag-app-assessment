@@ -2,18 +2,18 @@ from __future__ import annotations
 
 from src.core.config import RetrievalConfig
 from src.core.exceptions import ConfigError
+from src.data.vector_store.base import VectorStore
 from src.embeddings.base import EmbeddingProvider
 from src.retrieval.base import Retriever
 from src.retrieval.hybrid import HybridRetriever
 from src.retrieval.keyword import KeywordRetriever
 from src.retrieval.semantic import SemanticRetriever
-from src.retrieval.vector_store import FileVectorStore
 
 
 def create_retriever(
     config: RetrievalConfig,
     embedder: EmbeddingProvider | None = None,
-    store: FileVectorStore | None = None,
+    store: VectorStore | None = None,
 ) -> Retriever:
     if config.strategy == "keyword":
         return KeywordRetriever(config)
@@ -32,7 +32,7 @@ def create_retriever(
 def _semantic(
     config: RetrievalConfig,
     embedder: EmbeddingProvider | None,
-    store: FileVectorStore | None,
+    store: VectorStore | None,
 ) -> SemanticRetriever:
     if embedder is None:
         raise ConfigError(
