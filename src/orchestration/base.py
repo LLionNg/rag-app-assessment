@@ -12,11 +12,7 @@ from src.utils.timing import Timer
 
 
 class Orchestrator(ABC):
-    """Base orchestrator for the sequential two-agent workflow.
-
-    Subclasses only decide *how* the two agents are wired together; input
-    validation, timing and result assembly are shared.
-    """
+    """Base orchestrator for the sequential two-agent workflow."""
 
     engine: str = "orchestrator"
 

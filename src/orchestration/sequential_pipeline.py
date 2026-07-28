@@ -5,11 +5,7 @@ from src.orchestration.base import Orchestrator
 
 
 class SequentialOrchestrator(Orchestrator):
-    """Sequential handoff in plain asyncio - no orchestration framework.
-
-    The workflow is a straight line, so the two awaits below are the whole
-    graph: the Data Retriever's result is the Report Generator's only input.
-    """
+    """Sequential handoff in plain asyncio - no orchestration framework."""
 
     engine = "sequential"
 

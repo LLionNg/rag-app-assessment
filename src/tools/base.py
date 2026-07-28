@@ -7,12 +7,7 @@ from src.core.types import ToolOutput, ToolSpec
 
 
 class Tool(ABC):
-    """Base tool exposed to an agent.
-
-    `name`, `description` and `parameters` form the JSON-schema declaration the
-    model sees; `run` performs the work and returns both the text the model
-    reads and any structured payload the calling agent needs.
-    """
+    """Base tool exposed to an agent."""
 
     name: ClassVar[str]
     description: ClassVar[str]
