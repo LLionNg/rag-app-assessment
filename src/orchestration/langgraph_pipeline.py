@@ -15,11 +15,7 @@ class WorkflowState(TypedDict):
 
 
 class LangGraphOrchestrator(Orchestrator):
-    """Sequential LangGraph workflow: retrieve -> report.
-
-    The Data Retriever's output is the only input the Report Generator receives,
-    which keeps the handoff explicit and the graph acyclic.
-    """
+    """Sequential LangGraph workflow: retrieve -> report."""
 
     engine = "langgraph"
 
