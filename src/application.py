@@ -11,12 +11,12 @@ from src.core.types import PipelineResult
 from src.data.knowledge_base import KnowledgeBase
 from src.data.vector_store.file import FileVectorStore
 from src.embeddings.base import EmbeddingProvider
-from src.embeddings.factory import create_embedding_provider
+from src.embeddings.providers import create_embedding_provider
 from src.llm.base import LLMProvider
-from src.llm.factory import create_llm_provider
+from src.llm.providers import create_llm_provider
 from src.orchestration.base import Orchestrator
-from src.orchestration.factory import create_orchestrator
-from src.retrieval.factory import create_retriever
+from src.orchestration.engines import create_orchestrator
+from src.retrieval.strategies import create_retriever
 from src.tools.knowledge_search import KnowledgeSearchTool
 
 

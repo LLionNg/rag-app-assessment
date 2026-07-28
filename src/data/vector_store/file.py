@@ -12,11 +12,7 @@ from src.data.vector_store.base import VectorStore
 
 
 class FileVectorStore(VectorStore):
-    """Embeddings persisted as a `.npz` matrix beside a JSON manifest.
-
-    The file-backed stand-in for a pgvector table: small corpora do not need a
-    database, but they still benefit from not re-embedding on every start.
-    """
+    """Embeddings persisted as a `.npz` matrix beside a JSON manifest."""
 
     def __init__(self, config: VectorStoreConfig) -> None:
         self.config = config
