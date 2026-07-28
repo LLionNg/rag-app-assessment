@@ -40,23 +40,42 @@ class ScriptedLLMProvider(LLMProvider):
 
 
 class StubEmbeddingProvider(EmbeddingProvider):
-    """Bag-of-words vectors over a fixed vocabulary: deterministic, no network."""
+    """Bag-of-words vectors over a fixed vocabulary: deterministic, no network.
+
+    Padded to the configured width so the BGE-M3 dimension contract can be
+    exercised without downloading the real model.
+    """
 
     VOCABULARY = ("travel", "international", "expense", "receipt", "leave", "annual")
 
+    def __init__(self, config: EmbeddingsConfig) -> None:
+        super().__init__(config)
+        self.prepared = 0
+
+    async def prepare(self) -> None:
+        self.prepared += 1
+
     async def _embed_batch(self, texts: Sequence[str]) -> list[Vector]:
+        width = self.dimensions or len(self.VOCABULARY)
+        padding = [0.0] * max(0, width - len(self.VOCABULARY))
         return [
-            [float(term in text.lower()) for term in self.VOCABULARY] for text in texts
+            [float(term in text.lower()) for term in self.VOCABULARY][:width] + padding
+            for text in texts
         ]
+
+
+def make_stub_embedder(dimensions: int | None = None) -> StubEmbeddingProvider:
+    return StubEmbeddingProvider(
+        EmbeddingsConfig(
+            provider="stub",
+            providers={"stub": ProviderConfig(model="stub", dimensions=dimensions)},
+        )
+    )
 
 
 @pytest.fixture
 def stub_embedder() -> StubEmbeddingProvider:
-    return StubEmbeddingProvider(
-        EmbeddingsConfig(
-            provider="stub", providers={"stub": ProviderConfig(model="stub")}
-        )
-    )
+    return make_stub_embedder()
 
 
 @pytest.fixture
@@ -65,6 +84,7 @@ def settings() -> Settings:
     config.llm.provider = "mock"
     config.llm.max_retries = 0
     config.embeddings.provider = None
+    config.embeddings.store.enabled = False
     config.retrieval.strategy = "keyword"
     config.knowledge_base.path = ROOT / "data" / "knowledge_base.txt"
     config.logging.file = None

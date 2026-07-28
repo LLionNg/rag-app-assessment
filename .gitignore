@@ -13,6 +13,9 @@ dist/
 config.local.yml
 logs/
 
+# Derived embedding index - rebuilt automatically when the fingerprint changes
+data/index/
+
 .idea/
 .vscode/
 .DS_Store

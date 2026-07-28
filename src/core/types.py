@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Any, Literal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
 Role = Literal["system", "user", "assistant", "tool"]
 
@@ -62,6 +62,33 @@ class RetrievedChunk(BaseModel):
     score: float
     retriever: str
     query: str = ""
+
+
+class IndexFingerprint(BaseModel):
+    """Identifies exactly what a persisted embedding index was built from.
+
+    Compared by equality: any change to the model, the vector width, or the
+    chunk text invalidates the cached vectors and forces a re-embed.
+    """
+
+    model: str
+    dimensions: int = Field(ge=0)
+    chunk_count: int = Field(ge=0)
+    chunk_digest: str
+
+
+class EmbeddingManifest(BaseModel):
+    fingerprint: IndexFingerprint
+    chunk_ids: list[str]
+
+    @model_validator(mode="after")
+    def _chunk_ids_match_fingerprint(self) -> EmbeddingManifest:
+        if len(self.chunk_ids) != self.fingerprint.chunk_count:
+            raise ValueError(
+                f"manifest lists {len(self.chunk_ids)} chunk id(s) but the "
+                f"fingerprint records {self.fingerprint.chunk_count}"
+            )
+        return self
 
 
 class ToolOutput(BaseModel):

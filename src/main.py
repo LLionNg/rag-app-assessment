@@ -31,12 +31,19 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--no-snippets", action="store_true", help="hide the retrieved snippets"
     )
+    parser.add_argument(
+        "--reindex",
+        action="store_true",
+        help="rebuild the embedding index instead of reusing the stored one",
+    )
     return parser
 
 
 async def run(args: argparse.Namespace) -> int:
     settings = load_settings(args.config)
     configure_logging(settings.logging)
+    if args.reindex:
+        settings.embeddings.store.refresh = True
 
     async with await Application.create(settings) as app:
         print_banner(

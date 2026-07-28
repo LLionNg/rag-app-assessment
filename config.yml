@@ -37,20 +37,38 @@ llm:
       model: mock-llm
 
 embeddings:
-  # Leave null for keyword retrieval. Required by the semantic/hybrid strategies.
-  provider: null
-  batch_size: 32
-  timeout_seconds: 30
-  max_retries: 2
+  # Set to null to fall back to keyword-only retrieval.
+  provider: bge_m3
+  batch_size: 16
+  timeout_seconds: 300
+  max_retries: 1
+  # Persisted index: a .npz matrix plus a JSON manifest. No database.
+  store:
+    enabled: true
+    path: data/index
+    name: knowledge_base
+    refresh: false # or pass --reindex
   providers:
+    bge_m3:
+      model: BAAI/bge-m3
+      dimensions: 1024 # BGE-M3 dim
+      options:
+        backend: flag_embedding # sentence_transformers | flag_embedding
+        use_fp16: false
+        max_length: 8192
+        batch_size: 12
+        device: null # null lets the backend pick cuda/cpu
+        cache_dir: null # null uses the default HuggingFace cache
     azure_openai:
       model: text-embedding-3-small
+      dimensions: 1536
       endpoint: https://oaibblinnocandiddate01.openai.azure.com/
       deployment: text-embedding-3-small
       api_version: "2024-02-01"
       api_key_env: AZURE_OPENAI_API_KEY
     openai:
       model: text-embedding-3-small
+      dimensions: 1536
       base_url: https://api.openai.com/v1
       api_key_env: OPENAI_API_KEY
 
@@ -64,7 +82,7 @@ knowledge_base:
     overlap_chars: 120
 
 retrieval:
-  strategy: keyword # keyword | semantic | hybrid
+  strategy: semantic # keyword | semantic | hybrid
   top_k: 4
   min_score: 0.05
   keyword:
@@ -77,7 +95,7 @@ retrieval:
        "or", "our", "that", "the", "their", "this", "to", "was", "what",
        "when", "where", "which", "who", "will", "with", "you", "your"]
   semantic:
-    min_similarity: 0.2
+    min_similarity: 0.6
   hybrid:
     rrf_k: 60
     weights:

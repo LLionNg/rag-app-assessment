@@ -16,6 +16,7 @@ from src.orchestration.base import Orchestrator
 from src.orchestration.factory import create_orchestrator
 from src.retrieval.factory import create_retriever
 from src.retrieval.knowledge_base import KnowledgeBase
+from src.retrieval.vector_store import FileVectorStore
 from src.tools.knowledge_search import KnowledgeSearchTool
 
 
@@ -41,8 +42,14 @@ class Application:
         llm = create_llm_provider(settings.llm)
         embedder = create_embedding_provider(settings.embeddings)
 
+        store = (
+            FileVectorStore(settings.embeddings.store)
+            if settings.embeddings.store.enabled
+            else None
+        )
+
         knowledge_base = await KnowledgeBase.load(settings.knowledge_base)
-        retriever = create_retriever(settings.retrieval, embedder)
+        retriever = create_retriever(settings.retrieval, embedder, store)
         await retriever.index(knowledge_base.chunks)
 
         search_tool = KnowledgeSearchTool(retriever, settings.retrieval)
