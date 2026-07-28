@@ -29,14 +29,21 @@ Orchestration is a sequential [LangGraph](https://langchain-ai.github.io/langgra
 The project is uv-managed. `uv sync` provisions the interpreter pinned in `.python-version`, creates `.venv`, and installs the exact versions in `uv.lock` plus the project itself:
 
 ```bash
-uv sync
+uv sync --extra bge-flag
 ```
 
 ```bash
 uv run rag-app "What is the policy on international travel?"
 ```
 
-The default configuration uses the **mock LLM provider**, so this runs with no API key and no network access. It exercises the real agent loop, the real tool call, and the real retriever — only the model's wording is a placeholder.
+The default configuration is fully local: **BGE-M3 embeddings** running in-process and the **mock LLM provider**. No API key, and no network access after the first run. It exercises the real agent loop, the real tool call and the real vector retrieval — only the model's wording is a placeholder.
+
+That extra pulls torch, and the first run downloads the BGE-M3 weights into the HuggingFace cache (~4 GB on disk). To skip both, switch to keyword retrieval — plain `uv sync` is then enough:
+
+```yaml
+embeddings: { provider: null }
+retrieval:  { strategy: keyword }
+```
 
 | Command | What it does |
 | --- | --- |
@@ -44,6 +51,7 @@ The default configuration uses the **mock LLM provider**, so this runs with no A
 | `uv run rag-app --demo` | run every query under `demo.queries` |
 | `uv run rag-app --interactive` | ask questions in a loop |
 | `uv run rag-app --no-snippets` | hide the retrieval trace |
+| `uv run rag-app --reindex` | rebuild the embedding index instead of reusing it |
 | `uv run rag-app -c other.yml ...` | use a different config file |
 | `uv run pytest` | run the tests |
 | `uv run ruff check src tests` | lint |
@@ -75,7 +83,8 @@ Everything is driven by [`config.yml`](config.yml); secrets are read from the en
 | --- | --- |
 | `logging` | Level, rotating file sink, JSON serialisation |
 | `llm` | Active provider, temperature, token cap, timeout, retries, per-provider connection settings |
-| `embeddings` | Optional embedding provider (`null` disables it) |
+| `embeddings` | Provider (`null` disables it), batch size, expected `dimensions`, local-model `options` |
+| `embeddings.store` | Where the `.npz` index lives, and whether to reuse or rebuild it |
 | `knowledge_base` | Source file and chunking strategy (`paragraph` \| `fixed`), sizes, overlap |
 | `retrieval` | Strategy (`keyword` \| `semantic` \| `hybrid`), `top_k`, score floor, BM25 `k1`/`b`, stopwords, RRF settings |
 | `agents` | Agent display names, the Data Retriever's tool-call budget, snippet caps |
@@ -84,42 +93,42 @@ Everything is driven by [`config.yml`](config.yml); secrets are read from the en
 
 ### Retrieval strategies
 
-- **`keyword`** (default) — in-memory BM25. No external service, works offline.
-- **`semantic`** — cosine similarity over embedded chunks. Requires `embeddings.provider`.
+- **`semantic`** (default) — cosine similarity over BGE-M3 embeddings. Handles paraphrase.
+- **`keyword`** — in-memory BM25. No model, no download, exact-term precision.
 - **`hybrid`** — weighted reciprocal rank fusion of the two.
 
-`semantic` scores the whole corpus with one `matrix @ query` product: chunk vectors are L2-normalised as they are indexed, so the dot product is already the cosine similarity — the same quantity a pgvector-backed store returns as `1 - cosine_distance`. `retrieval.semantic.min_similarity` is the equivalent of the similarity floor applied in SQL.
+BM25 scores are normalised to 0–1 so `retrieval.min_score` means the same thing whichever strategy is active; cosine values are already comparable and are kept as-is. Chunks with no signal at all are dropped before ranking, so an off-topic question correctly returns nothing.
 
-Scores are normalised to 0–1 so `retrieval.min_score` means the same thing whichever strategy is active. Chunks with no term overlap at all are dropped before normalisation, so an off-topic question correctly returns nothing.
+Why `hybrid` is worth considering: BM25 alone cannot bridge vocabulary. Ask *"How do I get money back after a trip overseas?"* and it misses the reimbursement section entirely — `money`, `overseas` and `abroad` appear nowhere in the corpus, while `trip` appears inside the corporate-card section, which then ranks first. Embeddings fix that. Conversely BM25 is sharper on the exact tokens this corpus is full of — `USD 220`, `Tier 1`, `grade 5`, named portals — which embeddings blur.
 
-## Layout
+## Embedding pipeline
 
-```
-src/
-├── main.py              CLI entry point
-├── application.py       composition root: builds and wires every component
-├── console.py           terminal rendering
-├── core/                config, logging, shared types, exceptions
-├── llm/                 LLMProvider base + azure_openai, openai, mock
-├── embeddings/          EmbeddingProvider base + openai/azure implementations
-├── retrieval/           Retriever base + keyword, semantic, hybrid; chunking; knowledge base
-├── tools/               Tool base + search_knowledge_base
-├── prompts/             one module per agent
-├── agents/              BaseAgent (tool-calling loop) + the two agents
-└── orchestration/       Orchestrator base + LangGraph workflow
-data/knowledge_base.txt  sample corpus
-tests/                   chunking, retrieval, agents, end-to-end
-```
+Everything runs locally through [`BGEM3EmbeddingProvider`](src/embeddings/bge_m3.py); there is no vector database.
 
-Each pluggable concern is an abstract base class with a factory: `LLMProvider`, `EmbeddingProvider`, `Retriever`, `Chunker`, `Tool`, `BaseAgent`, `Orchestrator`. Adding a provider, a retrieval strategy, or a tool means adding one subclass and one registry entry — no changes to the agents or the workflow.
+1. `knowledge_base.txt` is chunked (16 paragraph chunks by default)
+2. Chunks are embedded in batches to **1024-dim** dense vectors. Encoding is blocking work, so it runs in a worker thread behind a lock — one in-process model must not be entered concurrently
+3. Vectors are written verbatim to `data/index/knowledge_base.npz`, beside a Pydantic-validated `knowledge_base.json` manifest
+4. Later runs load the `.npz` and skip embedding entirely
 
-Shared behaviour lives in the bases: retries with exponential backoff and latency logging in `LLMProvider`, batching and concurrency in `EmbeddingProvider`, ranking and score normalisation in `Retriever`, the tool-calling loop with concurrent tool execution in `BaseAgent`.
+The manifest carries an `IndexFingerprint` — model name, dimensions, chunk count, and a SHA-256 digest of the exact chunk text. It is compared by equality, so editing the knowledge base, changing the chunking strategy, or switching embedding model all invalidate the index automatically. Force a rebuild with `--reindex`.
 
-## How the agent loop works
+Two Pydantic guards make the 1024-dim contract explicit rather than assumed:
 
-`BaseAgent._converse` runs the model, executes any requested tool calls concurrently with `asyncio.gather`, feeds the results back, and repeats. Once the configured tool budget is spent the tools are withdrawn from the request, which forces the model to produce a final answer instead of looping — the loop cannot run away.
+- `embeddings.providers.bge_m3.dimensions: 1024` is checked against **every** batch in `EmbeddingProvider._assert_dimensions`, so a misconfigured model raises instead of silently writing vectors of the wrong width
+- `EmbeddingManifest` has a `model_validator` rejecting a manifest whose chunk-id list disagrees with its fingerprint
 
-The Data Retriever forwards the tool's **structured** output rather than the model's retelling of it, so snippets reach the Report Generator byte-for-byte as they appear in the knowledge base. The model's job is query formulation and relevance judgement, not transcription.
+Cosine similarity is our own function in [`similarity.py`](src/retrieval/similarity.py) — `dot(a, b) / (‖a‖·‖b‖)`, the same formula the reference service uses, evaluated for the whole corpus in one matrix product and unit-tested against a row-by-row implementation.
+
+### Swapping the backend
+
+`options.backend` selects how BGE-M3 is loaded, and both produce the same 1024-dim dense vectors:
+
+| Backend | Install | Notes |
+| --- | --- | --- |
+| `flag_embedding` (default) | `uv sync --extra bge-flag` | `BGEM3FlagModel`, the loader the reference service uses |
+| `sentence_transformers` | `uv sync --extra bge` | Lighter dependency tree |
+
+Hosted embeddings remain available by pointing `embeddings.provider` at `azure_openai` or `openai` — the retriever, the store and the similarity function are unchanged, only the provider differs.
 
 ## Branches
 

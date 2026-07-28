@@ -7,36 +7,67 @@ from loguru import logger
 
 from src.core.config import RetrievalConfig
 from src.core.exceptions import RetrievalError
-from src.core.types import Chunk, RetrievedChunk
+from src.core.types import Chunk, EmbeddingManifest, IndexFingerprint, RetrievedChunk
 from src.embeddings.base import EmbeddingProvider
 from src.retrieval.base import Retriever
+from src.retrieval.similarity import cosine_similarity
+from src.retrieval.vector_store import FileVectorStore, fingerprint_chunks
 
 
 class SemanticRetriever(Retriever):
     name = "semantic"
 
-    def __init__(self, config: RetrievalConfig, embedder: EmbeddingProvider) -> None:
+    def __init__(
+        self,
+        config: RetrievalConfig,
+        embedder: EmbeddingProvider,
+        store: FileVectorStore | None = None,
+    ) -> None:
         super().__init__(config)
         self._embedder = embedder
+        self._store = store
         self._chunks: list[Chunk] = []
         self._matrix = np.zeros((0, 0), dtype=np.float32)
 
     async def index(self, chunks: Sequence[Chunk]) -> None:
         self._chunks = list(chunks)
-        vectors = await self._embedder.embed([chunk.text for chunk in chunks])
+        fingerprint = IndexFingerprint(
+            model=self._embedder.model,
+            dimensions=self._embedder.dimensions,
+            chunk_count=len(self._chunks),
+            chunk_digest=fingerprint_chunks(self._chunks),
+        )
 
-        if len(vectors) != len(self._chunks):
-            raise RetrievalError(
-                f"Embedder returned {len(vectors)} vector(s) "
-                f"for {len(self._chunks)} chunk(s)"
+        cached = self._store.read(fingerprint) if self._store else None
+        if cached is not None:
+            self._matrix = cached
+            return
+
+        self._matrix = await self._embed(chunks)
+        if self._store:
+            self._store.write(
+                EmbeddingManifest(
+                    fingerprint=fingerprint,
+                    chunk_ids=[chunk.id for chunk in self._chunks],
+                ),
+                self._matrix,
             )
 
-        self._matrix = _unit_rows(np.asarray(vectors, dtype=np.float32))
+    async def _embed(self, chunks: Sequence[Chunk]) -> np.ndarray:
+        vectors = await self._embedder.embed([chunk.text for chunk in chunks])
+        if len(vectors) != len(chunks):
+            raise RetrievalError(
+                f"Embedder returned {len(vectors)} vector(s) for {len(chunks)} chunk(s)"
+            )
+
+        # Stored verbatim: normalisation belongs to cosine_similarity, not the index.
+        matrix = np.asarray(vectors, dtype=np.float32)
         logger.debug(
-            "Indexed {} chunk(s) for semantic search | dim={}",
-            self._matrix.shape[0],
-            self._matrix.shape[1] if self._matrix.size else 0,
+            "Embedded {} chunk(s) for semantic search | dim={}",
+            matrix.shape[0],
+            matrix.shape[1] if matrix.size else 0,
         )
+        return matrix
 
     async def search(
         self, query: str, top_k: int | None = None
@@ -44,12 +75,10 @@ class SemanticRetriever(Retriever):
         if not self._chunks:
             return []
 
-        query_vector = _unit(
-            np.asarray(await self._embedder.embed_query(query), dtype=np.float32)
+        query_vector = np.asarray(
+            await self._embedder.embed_query(query), dtype=np.float32
         )
-        # Rows were unit-normalised when indexed, so this single product *is* the
-        # cosine similarity - the value pgvector returns as 1 - cosine_distance.
-        similarities = self._matrix @ query_vector
+        similarities = cosine_similarity(self._matrix, query_vector)
         threshold = self.config.semantic.min_similarity
 
         scored = [
@@ -58,13 +87,3 @@ class SemanticRetriever(Retriever):
         ]
         # Cosine values are already comparable, so keep them as the score.
         return self._rank(scored, query, top_k, normalize=False)
-
-
-def _unit_rows(matrix: np.ndarray) -> np.ndarray:
-    norms = np.linalg.norm(matrix, axis=1, keepdims=True)
-    return matrix / np.where(norms == 0.0, 1.0, norms)
-
-
-def _unit(vector: np.ndarray) -> np.ndarray:
-    norm = np.linalg.norm(vector)
-    return vector / norm if norm else vector

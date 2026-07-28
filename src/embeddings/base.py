@@ -28,8 +28,17 @@ class EmbeddingProvider(ABC):
     def model(self) -> str:
         return self.provider_config.model
 
+    @property
+    def dimensions(self) -> int:
+        """Configured vector width, or 0 when the provider does not declare one."""
+        return self.provider_config.dimensions or 0
+
     @abstractmethod
     async def _embed_batch(self, texts: Sequence[str]) -> list[Vector]: ...
+
+    async def prepare(self) -> None:  # noqa: B027 - optional lifecycle hook
+        """Warm up before batching. Local models load weights here, outside the
+        per-batch timeout, so a first-run download cannot trip it."""
 
     async def aclose(self) -> None:  # noqa: B027 - optional lifecycle hook
         """Release provider resources. Overridden by providers holding a client."""
@@ -38,6 +47,7 @@ class EmbeddingProvider(ABC):
         if not texts:
             return []
 
+        await self.prepare()
         size = max(1, self.config.batch_size)
         batches = [texts[i : i + size] for i in range(0, len(texts), size)]
 
@@ -46,14 +56,29 @@ class EmbeddingProvider(ABC):
                 *(self._embed_with_retries(batch) for batch in batches)
             )
 
+        vectors = [vector for batch in results for vector in batch]
+        self._assert_dimensions(vectors)
+
         logger.info(
-            "Embedded {} text(s) in {} batch(es) in {}ms | model={}",
+            "Embedded {} text(s) in {} batch(es) in {}ms | model={} dim={}",
             len(texts),
             len(batches),
             timer.elapsed_ms,
             self.model,
+            len(vectors[0]) if vectors else 0,
         )
-        return [vector for batch in results for vector in batch]
+        return vectors
+
+    def _assert_dimensions(self, vectors: Sequence[Vector]) -> None:
+        expected = self.dimensions
+        if not expected:
+            return
+        widths = {len(vector) for vector in vectors} - {expected}
+        if widths:
+            raise ProviderError(
+                f"{self.name} returned vector width(s) {sorted(widths)} but "
+                f"embeddings.providers.{self.config.provider}.dimensions is {expected}"
+            )
 
     async def embed_query(self, text: str) -> Vector:
         vectors = await self.embed([text])

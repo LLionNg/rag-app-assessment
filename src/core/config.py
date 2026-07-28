@@ -28,6 +28,19 @@ class LoggingConfig(BaseModel):
     serialize: bool = False
 
 
+class LocalModelOptions(BaseModel):
+    """Knobs for models that run in-process rather than behind an API."""
+
+    backend: Literal["sentence_transformers", "flag_embedding"] = (
+        "sentence_transformers"
+    )
+    use_fp16: bool = False
+    max_length: int = Field(default=8192, gt=0)
+    batch_size: int = Field(default=12, gt=0)
+    device: str | None = None
+    cache_dir: Path | None = None
+
+
 class ProviderConfig(BaseModel):
     """Connection settings for one LLM or embedding provider.
 
@@ -44,6 +57,9 @@ class ProviderConfig(BaseModel):
     token_param: Literal["max_tokens", "max_completion_tokens"] = "max_tokens"
     supports_temperature: bool = True
     extra_body: dict[str, Any] = Field(default_factory=dict)
+    # Expected embedding width, enforced on every batch. BGE-M3 dense is 1024.
+    dimensions: int | None = Field(default=None, gt=0)
+    options: LocalModelOptions = Field(default_factory=LocalModelOptions)
 
     def api_key(self) -> str | None:
         return os.getenv(self.api_key_env) if self.api_key_env else None
@@ -74,11 +90,21 @@ class LLMConfig(_ProviderSelection):
     retry_backoff_seconds: float = 1.0
 
 
+class VectorStoreConfig(BaseModel):
+    """Where the persisted embedding index lives. No database required."""
+
+    enabled: bool = True
+    path: Path = Path("data/index")
+    name: str = "knowledge_base"
+    refresh: bool = False
+
+
 class EmbeddingsConfig(_ProviderSelection):
     provider: str | None = None
-    batch_size: int = 32
+    batch_size: int = Field(default=32, gt=0)
     timeout_seconds: float = 30.0
     max_retries: int = 2
+    store: VectorStoreConfig = Field(default_factory=VectorStoreConfig)
 
     @property
     def enabled(self) -> bool:
