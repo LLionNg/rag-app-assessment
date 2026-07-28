@@ -5,8 +5,15 @@ from pathlib import Path
 
 import pytest
 
-from src.core.config import LLMConfig, Settings, load_settings
+from src.core.config import (
+    EmbeddingsConfig,
+    LLMConfig,
+    ProviderConfig,
+    Settings,
+    load_settings,
+)
 from src.core.types import Chunk, LLMResponse, Message, ToolSpec
+from src.embeddings.base import EmbeddingProvider, Vector
 from src.llm.base import LLMProvider
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -30,6 +37,26 @@ class ScriptedLLMProvider(LLMProvider):
         if not self._responses:
             raise AssertionError("ScriptedLLMProvider ran out of responses")
         return self._responses.pop(0)
+
+
+class StubEmbeddingProvider(EmbeddingProvider):
+    """Bag-of-words vectors over a fixed vocabulary: deterministic, no network."""
+
+    VOCABULARY = ("travel", "international", "expense", "receipt", "leave", "annual")
+
+    async def _embed_batch(self, texts: Sequence[str]) -> list[Vector]:
+        return [
+            [float(term in text.lower()) for term in self.VOCABULARY] for text in texts
+        ]
+
+
+@pytest.fixture
+def stub_embedder() -> StubEmbeddingProvider:
+    return StubEmbeddingProvider(
+        EmbeddingsConfig(
+            provider="stub", providers={"stub": ProviderConfig(model="stub")}
+        )
+    )
 
 
 @pytest.fixture
