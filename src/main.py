@@ -49,7 +49,7 @@ async def run(args: argparse.Namespace) -> int:
 
         queries = [" ".join(args.query)] if args.query else []
         if args.demo:
-            queries = settings.demo.queries
+            queries.extend(settings.demo.queries)
 
         for query in queries:
             print_result(await app.ask(query), show_snippets=not args.no_snippets)
