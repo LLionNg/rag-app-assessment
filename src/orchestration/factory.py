@@ -5,10 +5,10 @@ from src.agents.report_generator import ReportGeneratorAgent
 from src.core.config import OrchestrationConfig
 from src.core.exceptions import ConfigError
 from src.orchestration.base import Orchestrator
-from src.orchestration.langgraph_pipeline import LangGraphOrchestrator
+from src.orchestration.sequential_pipeline import SequentialOrchestrator
 
 _ENGINES: dict[str, type[Orchestrator]] = {
-    "langgraph": LangGraphOrchestrator,
+    "sequential": SequentialOrchestrator,
 }
 
 

@@ -145,7 +145,7 @@ class AgentsConfig(BaseModel):
 
 
 class OrchestrationConfig(BaseModel):
-    engine: Literal["langgraph"] = "langgraph"
+    engine: Literal["sequential"] = "sequential"
 
 
 class DemoConfig(BaseModel):

@@ -94,7 +94,7 @@ agents:
     max_snippet_chars: 1200
 
 orchestration:
-  engine: langgraph
+  engine: sequential
 
 demo:
   queries:

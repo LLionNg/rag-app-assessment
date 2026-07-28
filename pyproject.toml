@@ -1,12 +1,11 @@
 [project]
 name = "rag-app-assessment"
 version = "0.1.0"
-description = "Two-agent RAG system: a retrieval specialist and a report writer, orchestrated with LangGraph"
+description = "Two-agent RAG system: a retrieval specialist and a report writer, no orchestration framework"
 readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [
     "aiofiles>=24.1.0",
-    "langgraph>=0.2.60",
     "loguru>=0.7.2",
     "openai>=1.60.0",
     "pydantic>=2.9.0",

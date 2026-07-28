@@ -7,7 +7,7 @@ An agentic RAG system with two collaborating agents over a local plain-text know
 | **Data Retriever** | Retrieval specialist. Reformulates the request into focused searches and never answers it. | `search_knowledge_base` (custom RAG tool) | Raw, deduplicated text snippets |
 | **Report Generator** | Writer and synthesiser. Turns the snippets into the final answer. | none | Cited, non-redundant markdown answer |
 
-Orchestration is a sequential [LangGraph](https://langchain-ai.github.io/langgraph/) workflow: the Data Retriever's output is the only input the Report Generator receives.
+Orchestration is a sequential `asyncio` handoff with **no orchestration framework**: the Data Retriever's output is the only input the Report Generator receives. This is the `framework-free` branch; `main` runs the identical agents through a LangGraph `StateGraph`.
 
 ```
                 ┌──────────────────┐   snippets    ┌───────────────────┐
@@ -103,7 +103,7 @@ src/
 ├── tools/               Tool base + search_knowledge_base
 ├── prompts/             one module per agent
 ├── agents/              BaseAgent (tool-calling loop) + the two agents
-└── orchestration/       Orchestrator base + LangGraph workflow
+└── orchestration/       Orchestrator base + sequential workflow
 data/knowledge_base.txt  sample corpus
 tests/                   chunking, retrieval, agents, end-to-end
 ```
@@ -120,16 +120,23 @@ The Data Retriever forwards the tool's **structured** output rather than the mod
 
 ## Branches
 
-| Branch | Orchestration |
-| --- | --- |
-| `main` | LangGraph `StateGraph` |
-| `framework-free` | Plain `asyncio`, no LangChain/LangGraph dependency |
+| Branch | Orchestration | Dependencies |
+| --- | --- | --- |
+| `main` | LangGraph `StateGraph` | `langgraph` |
+| `framework-free` (this one) | Plain `asyncio` | none for orchestration |
 
-Only the orchestration layer differs. Everything else — providers, retrieval, tools, agents, prompts, config — is identical, which is the point of keeping the framework at the edge of the design.
+Only the orchestration layer differs — one module and one registry entry. Providers, retrieval, tools, agents, prompts and config are identical, which is the point of keeping the framework at the edge of the design: here the whole workflow is two awaits in [`sequential_pipeline.py`](src/orchestration/sequential_pipeline.py).
+
+```python
+retrieval = await self.retriever_agent.run(query)
+report = await self.report_agent.run(retrieval)
+```
+
+The framework buys nothing at this size. It starts to pay off with branching, retries per node, checkpointing, or human-in-the-loop pauses — none of which this workflow has.
 
 ## Sample output
 
-Screenshots for several queries are in [`docs/screenshots/`](docs/screenshots/).
+`docs/screenshots/` is where the per-query screenshots go. They should be captured with a real model configured — the mock provider's answers are placeholders and would not show the synthesis quality the Report Generator is judged on.
 
 ## Notes and scope
 
