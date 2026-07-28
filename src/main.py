@@ -70,7 +70,10 @@ async def run(args: argparse.Namespace) -> int:
 async def interactive_loop(app: Application, show_snippets: bool) -> None:
     print("Ask a question, or press Enter to quit.")
     while True:
-        query = (await asyncio.to_thread(input, "\n> ")).strip()
+        try:
+            query = (await asyncio.to_thread(input, "\n> ")).strip()
+        except EOFError:  # stdin closed, e.g. piped or non-interactive shell
+            break
         if not query:
             break
         try:

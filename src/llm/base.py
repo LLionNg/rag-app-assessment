@@ -42,6 +42,10 @@ class LLMProvider(ABC):
     async def aclose(self) -> None:  # noqa: B027 - optional lifecycle hook
         """Release provider resources. Overridden by providers holding a client."""
 
+    def _is_retryable(self, exc: Exception) -> bool:
+        """Whether a failed call is worth repeating. Overridden per provider."""
+        return True
+
     async def complete(
         self,
         messages: Sequence[Message],
@@ -51,8 +55,10 @@ class LLMProvider(ABC):
     ) -> LLMResponse:
         attempts = max(1, self.config.max_retries + 1)
         last_error: Exception | None = None
+        made = 0
 
         for attempt in range(1, attempts + 1):
+            made = attempt
             with Timer() as timer:
                 try:
                     response = await asyncio.wait_for(
@@ -63,6 +69,14 @@ class LLMProvider(ABC):
                     raise
                 except Exception as exc:
                     last_error = exc
+                    if not self._is_retryable(exc):
+                        logger.error(
+                            "{} call failed permanently after {}ms: {}",
+                            self.name,
+                            timer.elapsed_ms,
+                            exc,
+                        )
+                        break
                     logger.warning(
                         "{} call failed (attempt {}/{}) after {}ms: {}",
                         self.name,
@@ -88,5 +102,5 @@ class LLMProvider(ABC):
             return response
 
         raise ProviderError(
-            f"{self.name} failed after {attempts} attempt(s): {last_error}"
+            f"{self.name} failed after {made} attempt(s): {last_error}"
         ) from last_error

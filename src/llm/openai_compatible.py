@@ -11,6 +11,7 @@ from src.core.config import LLMConfig
 from src.core.exceptions import ConfigError
 from src.core.types import LLMResponse, Message, TokenUsage, ToolCall, ToolSpec
 from src.llm.base import LLMProvider
+from src.utils.retry import is_retryable_openai_error
 
 
 class OpenAICompatibleProvider(LLMProvider):
@@ -44,6 +45,9 @@ class OpenAICompatibleProvider(LLMProvider):
 
     async def aclose(self) -> None:
         await self._client.close()
+
+    def _is_retryable(self, exc: Exception) -> bool:
+        return is_retryable_openai_error(exc)
 
     async def _complete(
         self,

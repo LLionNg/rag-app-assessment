@@ -97,7 +97,9 @@ Everything is driven by [`config.yml`](config.yml); secrets are read from the en
 - **`keyword`** — in-memory BM25. No model, no download, exact-term precision.
 - **`hybrid`** — weighted reciprocal rank fusion of the two.
 
-BM25 scores are normalised to 0–1 so `retrieval.min_score` means the same thing whichever strategy is active; cosine values are already comparable and are kept as-is. Chunks with no signal at all are dropped before ranking, so an off-topic question correctly returns nothing.
+BM25 scores are normalised to 0–1, so `retrieval.min_score` acts as a relative floor there. Cosine values are kept raw and gated by `retrieval.semantic.min_similarity` instead. Chunks with no signal at all are dropped before ranking, so an off-topic question correctly returns nothing.
+
+**`min_similarity` is model-specific and must be re-measured if the embedding model changes.** An absolute cosine floor does not transfer between models. On this corpus BGE-M3 puts on-topic hits at 0.46–0.73 and off-topic queries at or below 0.33, so 0.40 sits in the middle of a clean gap: every relevant chunk survives and nothing irrelevant leaks. A floor of 0.60 — plausible-looking, and correct for some other models — would admit only 1 of 16 chunks and silently starve the Report Generator no matter what `top_k` said.
 
 Why `hybrid` is worth considering: BM25 alone cannot bridge vocabulary. Ask *"How do I get money back after a trip overseas?"* and it misses the reimbursement section entirely — `money`, `overseas` and `abroad` appear nowhere in the corpus, while `trip` appears inside the corporate-card section, which then ranks first. Embeddings fix that. Conversely BM25 is sharper on the exact tokens this corpus is full of — `USD 220`, `Tier 1`, `grade 5`, named portals — which embeddings blur.
 

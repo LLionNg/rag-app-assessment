@@ -7,6 +7,7 @@ from openai import AsyncAzureOpenAI, AsyncOpenAI
 from src.core.config import EmbeddingsConfig
 from src.core.exceptions import ConfigError
 from src.embeddings.base import EmbeddingProvider, Vector
+from src.utils.retry import is_retryable_openai_error
 
 
 class OpenAICompatibleEmbeddingProvider(EmbeddingProvider):
@@ -35,6 +36,9 @@ class OpenAICompatibleEmbeddingProvider(EmbeddingProvider):
 
     async def aclose(self) -> None:
         await self._client.close()
+
+    def _is_retryable(self, exc: Exception) -> bool:
+        return is_retryable_openai_error(exc)
 
     async def _embed_batch(self, texts: Sequence[str]) -> list[Vector]:
         response = await self._client.embeddings.create(

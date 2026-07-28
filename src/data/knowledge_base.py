@@ -37,7 +37,6 @@ class KnowledgeBase:
                 text=piece,
                 source=path.name,
                 index=index,
-                metadata={"chars": len(piece)},
             )
             for index, piece in enumerate(pieces)
         ]
