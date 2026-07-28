@@ -1,0 +1,104 @@
+app:
+  name: rag-app-assessment
+  environment: local
+
+logging:
+  level: INFO
+  file: logs/app.log
+  rotation: 10 MB
+  retention: 7 days
+  serialize: false
+
+llm:
+  # mock is the offline placeholder; switch to azure_openai once the key is granted.
+  provider: mock
+  temperature: 0.2
+  max_tokens: 2048
+  timeout_seconds: 60
+  max_retries: 2
+  retry_backoff_seconds: 1.0
+  providers:
+    azure_openai:
+      model: gpt-5-mini
+      endpoint: https://oaibblinnocandiddate01.openai.azure.com/
+      deployment: gpt-5-mini
+      api_version: "2024-12-01-preview"
+      api_key_env: AZURE_OPENAI_API_KEY
+      # gpt-5 family rejects `max_tokens` and any non-default temperature.
+      token_param: max_completion_tokens
+      supports_temperature: false
+    openai:
+      model: gpt-4o-mini
+      base_url: https://api.openai.com/v1
+      api_key_env: OPENAI_API_KEY
+      token_param: max_tokens
+      supports_temperature: true
+    mock:
+      model: mock-llm
+
+embeddings:
+  # Leave null for keyword retrieval. Required by the semantic/hybrid strategies.
+  provider: null
+  batch_size: 32
+  timeout_seconds: 30
+  max_retries: 2
+  providers:
+    azure_openai:
+      model: text-embedding-3-small
+      endpoint: https://oaibblinnocandiddate01.openai.azure.com/
+      deployment: text-embedding-3-small
+      api_version: "2024-02-01"
+      api_key_env: AZURE_OPENAI_API_KEY
+    openai:
+      model: text-embedding-3-small
+      base_url: https://api.openai.com/v1
+      api_key_env: OPENAI_API_KEY
+
+knowledge_base:
+  path: data/knowledge_base.txt
+  encoding: utf-8
+  chunking:
+    strategy: paragraph # paragraph | fixed
+    max_chars: 900
+    min_chars: 80
+    overlap_chars: 120
+
+retrieval:
+  strategy: keyword # keyword | semantic | hybrid
+  top_k: 4
+  min_score: 0.05
+  keyword:
+    k1: 1.5
+    b: 0.75
+    # Quoted because YAML reads bare `on`/`no` as booleans.
+    stopwords:
+      ["a", "an", "and", "are", "as", "at", "be", "by", "can", "do", "does",
+       "for", "from", "how", "i", "if", "in", "is", "it", "my", "of", "on",
+       "or", "our", "that", "the", "their", "this", "to", "was", "what",
+       "when", "where", "which", "who", "will", "with", "you", "your"]
+  semantic:
+    min_similarity: 0.2
+  hybrid:
+    rrf_k: 60
+    weights:
+      keyword: 0.5
+      semantic: 0.5
+
+agents:
+  data_retriever:
+    name: Data Retriever
+    max_tool_iterations: 3
+    max_snippets: 6
+  report_generator:
+    name: Report Generator
+    max_snippet_chars: 1200
+
+orchestration:
+  engine: langgraph
+
+demo:
+  queries:
+    - What is the policy on international travel?
+    - How do I get reimbursed after a business trip?
+    - What are the rules for working from home and keeping customer data safe?
+    - How much parental leave am I entitled to?

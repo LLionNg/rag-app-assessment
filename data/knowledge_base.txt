@@ -1,0 +1,47 @@
+NORTHWIND FINANCIAL GROUP - EMPLOYEE POLICY HANDBOOK (EXTRACT)
+This is a fictional handbook written as sample data for a retrieval exercise.
+
+INTERNATIONAL TRAVEL POLICY
+All international business travel must be approved in advance by the employee's line manager and by the Regional Travel Desk. Requests are submitted through the Travel Portal at least fourteen calendar days before departure; requests filed later than seven days before departure require a written exception from a Managing Director. Employees travelling to a country rated "elevated risk" or above by the Group Security team must additionally complete the pre-departure security briefing and register their itinerary with Global Security before boarding.
+
+INTERNATIONAL TRAVEL - CLASS OF SERVICE AND ACCOMMODATION
+Economy class is the standard for all flights under seven hours of scheduled flying time. Premium economy is permitted for flights between seven and eleven hours, and business class is permitted only for flights exceeding eleven hours or where the employee is scheduled to attend a client meeting within twelve hours of landing. Hotel bookings must be made through the Travel Portal so that negotiated corporate rates apply; the nightly cap is USD 220 for Tier 1 cities and USD 150 elsewhere. Upgrades paid for with personal funds or personal loyalty points are permitted and are never reimbursed.
+
+INTERNATIONAL TRAVEL - PER DIEM AND INSURANCE
+Employees on international assignment receive a per diem of USD 75 per full day and USD 40 per partial day, which covers meals and incidental expenses. The per diem is reduced by 40 percent for any day on which meals are provided by a client or conference host. Group travel insurance covers all employees automatically for trips of up to ninety consecutive days; longer assignments require an extension arranged by People Operations at least one month in advance. Employees must not travel on a personal passport for company business without written approval from Group Compliance.
+
+EXPENSE REIMBURSEMENT
+Expense claims are submitted in the Finance Portal within thirty calendar days of the expense being incurred. Claims older than sixty days are rejected unless a Finance Director grants an exception. Every claim line above USD 25 requires a legible receipt or a scanned invoice; card statements alone are not accepted as evidence. Reimbursement is paid with the next payroll run after approval, which is typically fifteen to twenty business days from submission. Alcohol, personal entertainment, traffic fines, and lost baggage that is already covered by travel insurance are not reimbursable.
+
+CORPORATE CARD USE
+Corporate cards are issued to employees at grade 5 and above, and to any employee who is expected to travel internationally more than twice per year. The card is for business expenditure only. Personal spending on a corporate card must be reported to Finance within five business days and repaid immediately. Cash advances are blocked by default and can be enabled for a single trip on request from a line manager. A lost or compromised card must be reported to the card issuer and to Finance Operations within twenty-four hours.
+
+REMOTE AND HYBRID WORK
+Most roles operate on a hybrid schedule of three days in the office and two days remote, with the in-office days agreed at team level so that each team overlaps for at least two common days. Fully remote arrangements are approved case by case by a department head and are reviewed every six months. Employees working remotely must be reachable during their team's core hours of 09:30 to 16:30 local time. Working from a country other than the employee's country of employment requires prior approval from People Operations and Group Tax, because it can create a tax presence for the company; such arrangements are capped at twenty working days per calendar year.
+
+INFORMATION SECURITY - DEVICES AND ACCESS
+Company data is accessed only from company-managed devices with full-disk encryption and the current endpoint agent installed. Personal devices may be enrolled for email and calendar only. Multi-factor authentication is mandatory on every system that supports it, and passwords are managed exclusively through the approved password manager. Employees must never use public Wi-Fi without the corporate VPN, and screens must be locked whenever a device is left unattended.
+
+INFORMATION SECURITY - HANDLING CUSTOMER DATA
+Customer data is classified as Confidential or Restricted and may not be copied to personal storage, personal email, or unapproved cloud services or AI tools. Restricted data may only be processed inside approved systems within the customer's own jurisdiction. Any suspected data loss, phishing attempt, or unauthorised access is reported to the Security Operations Centre within one hour of discovery; employees are never penalised for reporting an incident in good faith. Retention periods are set by Group Records Management, and data is deleted through the approved disposal workflow rather than by the employee.
+
+ANNUAL LEAVE
+Full-time employees accrue twenty-two days of annual leave per year, rising to twenty-five days after five years of continuous service. Leave is requested in the People Portal and requires line manager approval; requests of five consecutive days or more should be submitted at least three weeks in advance. Up to five unused days may be carried into the following year and must be taken before 31 March, after which they lapse. Employees in client-facing control functions are required to take at least ten consecutive calendar days away from all systems each year.
+
+SICK LEAVE AND MEDICAL ABSENCE
+Employees notify their line manager as early as possible on the first day of absence and record the absence in the People Portal on return. A medical certificate is required for any absence of three or more consecutive working days. Paid sick leave is capped at thirty working days per calendar year, after which the case is referred to People Operations for a long-term absence review. Medical information is held by People Operations and is not shared with the line manager beyond fitness-to-work status.
+
+PARENTAL LEAVE
+The primary caregiver is entitled to ninety-eight days of fully paid parental leave, and the secondary caregiver to fifteen paid working days that may be taken in up to three separate blocks within the first six months. Parental leave is available from the first day of employment with no qualifying service period. Employees returning from parental leave may request a phased return of up to eight weeks at reduced hours on full pay for the first four weeks. Notice of intended leave dates should be given at least eight weeks before the expected start date.
+
+TRAINING AND PROFESSIONAL DEVELOPMENT
+Each employee has an annual development budget of USD 1,500 that may be spent on courses, conferences, and professional memberships, and it does not carry over into the next year. Professional certifications required by a role, such as risk or compliance qualifications, are funded separately and in full. Where the company funds a qualification costing more than USD 5,000, the employee agrees to a twelve-month retention period after completion. Study leave of up to five days per year is available for examinations.
+
+PROCUREMENT AND SUPPLIER ENGAGEMENT
+No employee may commit the company to a supplier contract without a purchase order raised in the Procurement Portal. Purchases up to USD 10,000 require department head approval; purchases above that threshold require three competitive quotes and a Procurement Committee review. Any supplier that will process customer data must pass a security and data protection assessment before contracts are signed, and the assessment is repeated every two years. Gifts or hospitality from suppliers with a value above USD 100 must be declined or declared in the Gifts Register.
+
+CODE OF CONDUCT AND CONFLICTS OF INTEREST
+Employees declare any outside business interest, second employment, or close personal relationship with a supplier, competitor, or customer in the Conflicts Register, and update the declaration within thirty days of any change. Personal trading in securities is subject to the Group Personal Account Dealing rules, which require pre-clearance and a minimum thirty-day holding period. The Group operates a zero-tolerance policy on bribery and facilitation payments. Concerns may be raised anonymously through the Speak Up line, which is operated by an independent third party.
+
+PERFORMANCE AND PROMOTION
+Performance is reviewed twice a year, with a mid-year check-in in July and a full review in January covering both objectives and behaviours. Ratings are calibrated at department level before they are shared with employees. Promotion nominations are made by the line manager during the January cycle and require evidence of sustained performance at the higher grade for at least two review periods. Employees on a formal performance improvement plan are not eligible for promotion until the plan has been closed successfully for one full review period.
