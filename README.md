@@ -88,6 +88,8 @@ Everything is driven by [`config.yml`](config.yml); secrets are read from the en
 - **`semantic`** — cosine similarity over embedded chunks. Requires `embeddings.provider`.
 - **`hybrid`** — weighted reciprocal rank fusion of the two.
 
+`semantic` scores the whole corpus with one `matrix @ query` product: chunk vectors are L2-normalised as they are indexed, so the dot product is already the cosine similarity — the same quantity a pgvector-backed store returns as `1 - cosine_distance`. `retrieval.semantic.min_similarity` is the equivalent of the similarity floor applied in SQL.
+
 Scores are normalised to 0–1 so `retrieval.min_score` means the same thing whichever strategy is active. Chunks with no term overlap at all are dropped before normalisation, so an off-topic question correctly returns nothing.
 
 ## Layout
