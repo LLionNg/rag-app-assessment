@@ -43,6 +43,10 @@ class EmbeddingProvider(ABC):
     async def aclose(self) -> None:  # noqa: B027 - optional lifecycle hook
         """Release provider resources. Overridden by providers holding a client."""
 
+    def _is_retryable(self, exc: Exception) -> bool:
+        """Whether a failed batch is worth repeating. Overridden per provider."""
+        return True
+
     async def embed(self, texts: Sequence[str]) -> list[Vector]:
         if not texts:
             return []
@@ -87,8 +91,10 @@ class EmbeddingProvider(ABC):
     async def _embed_with_retries(self, texts: Sequence[str]) -> list[Vector]:
         attempts = max(1, self.config.max_retries + 1)
         last_error: Exception | None = None
+        made = 0
 
         for attempt in range(1, attempts + 1):
+            made = attempt
             try:
                 return await asyncio.wait_for(
                     self._embed_batch(texts), timeout=self.config.timeout_seconds
@@ -97,6 +103,9 @@ class EmbeddingProvider(ABC):
                 raise
             except Exception as exc:
                 last_error = exc
+                if not self._is_retryable(exc):
+                    logger.error("Embedding batch failed permanently: {}", exc)
+                    break
                 logger.warning(
                     "Embedding batch failed (attempt {}/{}): {}", attempt, attempts, exc
                 )
@@ -104,5 +113,5 @@ class EmbeddingProvider(ABC):
                     await asyncio.sleep(2 ** (attempt - 1))
 
         raise ProviderError(
-            f"{self.name} embeddings failed after {attempts} attempt(s): {last_error}"
+            f"{self.name} embeddings failed after {made} attempt(s): {last_error}"
         ) from last_error
