@@ -6,7 +6,7 @@ from loguru import logger
 from src.core.config import KnowledgeBaseConfig
 from src.core.exceptions import KnowledgeBaseError
 from src.core.types import Chunk
-from src.retrieval.chunking import create_chunker
+from src.data.chunking import create_chunker
 
 
 class KnowledgeBase:

@@ -8,10 +8,10 @@ from loguru import logger
 from src.core.config import RetrievalConfig
 from src.core.exceptions import RetrievalError
 from src.core.types import Chunk, EmbeddingManifest, IndexFingerprint, RetrievedChunk
+from src.data.vector_store.base import VectorStore, fingerprint_chunks
 from src.embeddings.base import EmbeddingProvider
 from src.retrieval.base import Retriever
 from src.retrieval.similarity import cosine_similarity
-from src.retrieval.vector_store import FileVectorStore, fingerprint_chunks
 
 
 class SemanticRetriever(Retriever):
@@ -21,7 +21,7 @@ class SemanticRetriever(Retriever):
         self,
         config: RetrievalConfig,
         embedder: EmbeddingProvider,
-        store: FileVectorStore | None = None,
+        store: VectorStore | None = None,
     ) -> None:
         super().__init__(config)
         self._embedder = embedder
@@ -38,14 +38,14 @@ class SemanticRetriever(Retriever):
             chunk_digest=fingerprint_chunks(self._chunks),
         )
 
-        cached = self._store.read(fingerprint) if self._store else None
+        cached = await self._store.read(fingerprint) if self._store else None
         if cached is not None:
             self._matrix = cached
             return
 
         self._matrix = await self._embed(chunks)
         if self._store:
-            self._store.write(
+            await self._store.write(
                 EmbeddingManifest(
                     fingerprint=fingerprint,
                     chunk_ids=[chunk.id for chunk in self._chunks],

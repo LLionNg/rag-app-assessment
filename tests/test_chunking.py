@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from src.core.config import ChunkingConfig
-from src.retrieval.chunking import FixedChunker, ParagraphChunker, create_chunker
+from src.data.chunking import FixedChunker, ParagraphChunker, create_chunker
 
 
 def test_paragraph_chunker_keeps_one_chunk_per_paragraph():
