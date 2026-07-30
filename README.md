@@ -118,7 +118,7 @@ Everything is driven by [`config.yml`](config.yml); secrets are read from the en
 | `embeddings` | Provider (`null` disables it), batch size, expected `dimensions`, local-model `options` |
 | `embeddings.store` | Where the `.npz` index lives, and whether to reuse or rebuild it |
 | `knowledge_base` | Source file and chunking strategy (`paragraph` \| `fixed`), sizes, overlap |
-| `retrieval` | Strategy (`keyword` \| `semantic` \| `hybrid`), `top_k`, score floor, BM25 `k1`/`b`, stopwords, RRF settings |
+| `retrieval` | Strategy (`keyword` \| `semantic` \| `hybrid`), `top_k`, score floor, BM25 `k1`/`b`, RRF settings |
 | `agents` | Agent display names, the Data Retriever's tool-call budget, snippet caps |
 | `orchestration` | Workflow engine |
 | `demo` | Queries used by `--demo` |

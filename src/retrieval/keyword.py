@@ -26,11 +26,8 @@ class KeywordRetriever(Retriever):
         self._avg_length = 0.0
 
     async def index(self, chunks: Sequence[Chunk]) -> None:
-        stopwords = self.config.keyword.stopwords
         self._chunks = list(chunks)
-        self._term_freqs = [
-            Counter(tokenize(chunk.text, stopwords)) for chunk in chunks
-        ]
+        self._term_freqs = [Counter(tokenize(chunk.text)) for chunk in chunks]
         self._lengths = [sum(freqs.values()) for freqs in self._term_freqs]
         self._avg_length = (
             (sum(self._lengths) / len(self._lengths)) if self._lengths else 0.0
@@ -50,7 +47,7 @@ class KeywordRetriever(Retriever):
     async def search(
         self, query: str, top_k: int | None = None
     ) -> list[RetrievedChunk]:
-        terms = tokenize(query, self.config.keyword.stopwords)
+        terms = tokenize(query)
         if not terms or not self._chunks:
             return []
 
