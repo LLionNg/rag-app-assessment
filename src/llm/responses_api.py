@@ -166,7 +166,7 @@ class ResponsesAPIProvider(LLMProvider):
             )
 
         return LLMResponse(
-            content="".join(texts),
+            content="\n".join(part for part in texts if part.strip()),
             tool_calls=tool_calls,
             finish_reason="tool_calls" if tool_calls else payload.get("status"),
             model=payload.get("model", ""),
