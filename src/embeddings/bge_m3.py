@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import asyncio
+import logging
+import os
 from collections.abc import Sequence
 from typing import Any
 
@@ -44,6 +46,13 @@ class BGEM3EmbeddingProvider(EmbeddingProvider):
         self._model = None
 
     def _load_model(self) -> Any:
+        # Set before the backend imports huggingface_hub: progress bars and the
+        # symlink notice are written straight to the terminal, not through our
+        # logger, so they cannot be filtered afterwards.
+        os.environ.setdefault("HF_HUB_DISABLE_PROGRESS_BARS", "1")
+        os.environ.setdefault("HF_HUB_DISABLE_SYMLINKS_WARNING", "1")
+        logging.getLogger("huggingface_hub").setLevel(logging.ERROR)
+
         backend = self._options.backend
         module_name, hint = _INSTALL_HINT[backend]
         try:

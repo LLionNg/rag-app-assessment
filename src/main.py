@@ -36,11 +36,19 @@ def build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="rebuild the embedding index instead of reusing the stored one",
     )
+    parser.add_argument(
+        "-q",
+        "--quiet",
+        action="store_true",
+        help="show only the report, suppressing progress logs",
+    )
     return parser
 
 
 async def run(args: argparse.Namespace) -> int:
     settings = load_settings(args.config)
+    if args.quiet:
+        settings.logging.level = "ERROR"
     configure_logging(settings.logging)
     if args.reindex:
         settings.embeddings.store.refresh = True
