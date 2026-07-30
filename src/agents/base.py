@@ -55,9 +55,11 @@ class BaseAgent(ABC):
                 # Withdrawing the tools once the budget is spent forces a final answer.
                 within_budget = iteration <= self._max_tool_iterations
                 if not within_budget and self._specs:
-                    logger.warning(
-                        "[{}] tool budget of {} iteration(s) spent, requesting a "
-                        "final answer without tools",
+                    # The designed end of the loop, not an anomaly: the budget is
+                    # spent, so the tools come away and the model must answer.
+                    logger.info(
+                        "[{}] tool budget spent after {} iteration(s), asking for "
+                        "the final answer",
                         self.name,
                         self._max_tool_iterations,
                     )

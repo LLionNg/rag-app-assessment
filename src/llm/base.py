@@ -50,6 +50,12 @@ class LLMProvider(ABC):
         """Seconds to wait before the next attempt. Overridden per provider."""
         return self.config.retry_backoff_seconds * 2 ** (attempt - 1)
 
+    @staticmethod
+    def _describe(exc: Exception) -> str:
+        """First line only: SDK errors append documentation links we do not want
+        repeated on every retry."""
+        return str(exc).strip().splitlines()[0]
+
     async def complete(
         self,
         messages: Sequence[Message],
@@ -78,7 +84,7 @@ class LLMProvider(ABC):
                             "{} call failed permanently after {}ms: {}",
                             self.name,
                             timer.elapsed_ms,
-                            exc,
+                            self._describe(exc),
                         )
                         break
                     delay = self._retry_delay(exc, attempt)
@@ -89,7 +95,7 @@ class LLMProvider(ABC):
                         attempts,
                         timer.elapsed_ms,
                         round(delay, 1) if attempt < attempts else 0,
-                        exc,
+                        self._describe(exc),
                     )
                     if attempt < attempts:
                         await asyncio.sleep(delay)

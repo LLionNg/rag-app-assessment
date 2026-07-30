@@ -20,7 +20,9 @@ def configure_logging(config: LoggingConfig) -> None:
         format=_CONSOLE_FORMAT,
         backtrace=False,
         diagnose=False,
-        enqueue=True,
+        # Synchronous: a queued sink lets stderr logs land inside the stdout
+        # report, which makes a mess of the terminal and of screenshots.
+        enqueue=False,
     )
 
     if config.file:
