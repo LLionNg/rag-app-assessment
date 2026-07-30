@@ -1,15 +1,15 @@
 from __future__ import annotations
 
 import re
-from collections.abc import Iterable
 
 _WORD = re.compile(r"[a-z0-9]+(?:[-'][a-z0-9]+)*")
 _WHITESPACE = re.compile(r"\s+")
 
 
-def tokenize(text: str, stopwords: Iterable[str] = ()) -> list[str]:
-    stop = set(stopwords)
-    return [token for token in _WORD.findall(text.lower()) if token not in stop]
+def tokenize(text: str) -> list[str]:
+    """No stopword list: BM25's IDF already discounts ubiquitous terms, and it
+    does so from the corpus rather than from a fixed English word list."""
+    return _WORD.findall(text.lower())
 
 
 def collapse_whitespace(text: str) -> str:

@@ -138,7 +138,6 @@ class KnowledgeBaseConfig(BaseModel):
 class KeywordRetrievalConfig(BaseModel):
     k1: float = 1.5
     b: float = 0.75
-    stopwords: list[str] = Field(default_factory=list)
 
 
 class SemanticRetrievalConfig(BaseModel):

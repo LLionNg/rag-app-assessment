@@ -10,18 +10,13 @@ logging:
   serialize: false
 
 llm:
-  # bbl_gateway is the assessment endpoint; mock is the offline placeholder.
-  provider: bbl_gateway
+  provider: bbl_gateway # azure_openai | bbl_gateway | openai | mock
   temperature: 0.2
   max_tokens: 2048
   timeout_seconds: 120
-  # A metered token window is cleared in seconds, not milliseconds. The gateway's
-  # Retry-After is preferred when it sends one.
   max_retries: 4
   retry_backoff_seconds: 20.0
   providers:
-    # Azure OpenAI Responses API behind an API Management gateway. The endpoint
-    # in the assessment brief was superseded by this one.
     bbl_gateway:
       model: gpt-5-mini
       base_url: https://apimsdbxcandidate01.azure-api.net/llm
@@ -30,8 +25,6 @@ llm:
       token_param: max_output_tokens
       supports_temperature: false # gpt-5-mini rejects the parameter outright
       reasoning_effort: low # cuts hidden reasoning tokens by roughly half
-      # The grant is 1000 tokens/minute. Every parallel search replays its full
-      # result into the next request, so one search per turn keeps us in budget.
       parallel_tool_calls: false
       max_tool_calls: 1
     azure_openai:
@@ -40,7 +33,6 @@ llm:
       deployment: gpt-5-mini
       api_version: "2024-12-01-preview"
       api_key_env: AZURE_OPENAI_API_KEY
-      # gpt-5 family rejects `max_tokens` and any non-default temperature.
       token_param: max_completion_tokens
       supports_temperature: false
     openai:
@@ -53,7 +45,6 @@ llm:
       model: mock-llm
 
 embeddings:
-  # Set to null to fall back to keyword-only retrieval.
   provider: bge_m3
   batch_size: 16 # texts per concurrent task (see options.batch_size for the model's own)
   timeout_seconds: 300
@@ -99,22 +90,12 @@ knowledge_base:
 
 retrieval:
   strategy: semantic # keyword | semantic | hybrid
-  top_k: 4
+  top_k: 5
   min_score: 0.05
   keyword:
     k1: 1.5
     b: 0.75
-    # Quoted because YAML reads bare `on`/`no` as booleans.
-    stopwords:
-      ["a", "an", "and", "are", "as", "at", "be", "by", "can", "do", "does",
-       "for", "from", "how", "i", "if", "in", "is", "it", "my", "of", "on",
-       "or", "our", "that", "the", "their", "this", "to", "was", "what",
-       "when", "where", "which", "who", "will", "with", "you", "your"]
   semantic:
-    # Model-specific: an absolute cosine floor does not transfer between
-    # embedding models. Calibrated for BGE-M3 on this corpus, where on-topic
-    # hits land at 0.46-0.73 and off-topic queries peak at 0.33. Re-measure
-    # before changing the embedding model.
     min_similarity: 0.40
   hybrid:
     rrf_k: 60
@@ -125,12 +106,11 @@ retrieval:
 agents:
   data_retriever:
     name: Data Retriever
-    # One search, then a forced wrap-up: three metered calls per query, not five.
     max_tool_iterations: 1
     max_snippets: 4
   report_generator:
     name: Report Generator
-    max_snippet_chars: 700 # a full chunk, without the metered tail
+    max_snippet_chars: 700
 
 orchestration:
   engine: sequential
