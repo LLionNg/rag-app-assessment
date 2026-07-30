@@ -125,7 +125,8 @@ retrieval:
 agents:
   data_retriever:
     name: Data Retriever
-    max_tool_iterations: 2
+    # One search, then a forced wrap-up: three metered calls per query, not five.
+    max_tool_iterations: 1
     max_snippets: 4
   report_generator:
     name: Report Generator
