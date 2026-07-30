@@ -39,6 +39,10 @@ class Message(BaseModel):
     content: str = ""
     tool_calls: list[ToolCall] = Field(default_factory=list)
     tool_call_id: str | None = None
+    # Provider-native items replayed verbatim. Reasoning models reject a tool
+    # call that is sent back without the reasoning item it was paired with, so
+    # the exact response payload has to survive the round trip.
+    raw_items: list[Any] = Field(default_factory=list)
 
 
 class LLMResponse(BaseModel):
@@ -47,6 +51,7 @@ class LLMResponse(BaseModel):
     finish_reason: str | None = None
     model: str = ""
     usage: TokenUsage = Field(default_factory=TokenUsage)
+    raw_items: list[Any] = Field(default_factory=list)
 
 
 class Chunk(BaseModel):

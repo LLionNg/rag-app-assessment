@@ -46,6 +46,10 @@ class LLMProvider(ABC):
         """Whether a failed call is worth repeating. Overridden per provider."""
         return True
 
+    def _retry_delay(self, exc: Exception, attempt: int) -> float:
+        """Seconds to wait before the next attempt. Overridden per provider."""
+        return self.config.retry_backoff_seconds * 2 ** (attempt - 1)
+
     async def complete(
         self,
         messages: Sequence[Message],
@@ -77,18 +81,18 @@ class LLMProvider(ABC):
                             exc,
                         )
                         break
+                    delay = self._retry_delay(exc, attempt)
                     logger.warning(
-                        "{} call failed (attempt {}/{}) after {}ms: {}",
+                        "{} call failed (attempt {}/{}) after {}ms, retry in {}s: {}",
                         self.name,
                         attempt,
                         attempts,
                         timer.elapsed_ms,
+                        round(delay, 1) if attempt < attempts else 0,
                         exc,
                     )
                     if attempt < attempts:
-                        await asyncio.sleep(
-                            self.config.retry_backoff_seconds * 2 ** (attempt - 1)
-                        )
+                        await asyncio.sleep(delay)
                     continue
 
             logger.info(

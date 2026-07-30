@@ -6,8 +6,10 @@ from src.llm.azure_openai import AzureOpenAIProvider
 from src.llm.base import LLMProvider
 from src.llm.mock import MockLLMProvider
 from src.llm.openai_compatible import OpenAICompatibleProvider
+from src.llm.responses_api import ResponsesAPIProvider
 
 _PROVIDERS: dict[str, type[LLMProvider]] = {
+    "bbl_gateway": ResponsesAPIProvider,
     "azure_openai": AzureOpenAIProvider,
     "openai": OpenAICompatibleProvider,
     "mock": MockLLMProvider,

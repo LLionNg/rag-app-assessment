@@ -54,8 +54,19 @@ class ProviderConfig(BaseModel):
     endpoint: str | None = None
     deployment: str | None = None
     api_version: str | None = None
-    token_param: Literal["max_tokens", "max_completion_tokens"] = "max_tokens"
+    token_param: Literal["max_tokens", "max_completion_tokens", "max_output_tokens"] = (
+        "max_tokens"
+    )
     supports_temperature: bool = True
+    # Gateways in front of Azure OpenAI authenticate with `api-key` rather than
+    # the SDK default of `Authorization: Bearer`.
+    auth_header: str = "api-key"
+    # Reasoning models bill hidden reasoning tokens; "low" cuts them sharply.
+    reasoning_effort: Literal["minimal", "low", "medium", "high"] | None = None
+    # Each parallel tool call replays its whole result into the next request, so
+    # under a tight token budget these two caps matter more than they look.
+    parallel_tool_calls: bool | None = None
+    max_tool_calls: int | None = Field(default=None, gt=0)
     extra_body: dict[str, Any] = Field(default_factory=dict)
     # Expected embedding width, enforced on every batch. BGE-M3 dense is 1024.
     dimensions: int | None = Field(default=None, gt=0)

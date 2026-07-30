@@ -59,7 +59,39 @@ retrieval:  { strategy: keyword }
 
 Every command runs inside the locked environment, so there is nothing to activate. `uv run python -m src.main ...` is equivalent to `uv run rag-app ...`.
 
-## Connecting a real model
+## The assessment gateway (gpt-5-mini)
+
+The default `llm.provider` is `bbl_gateway`. Put the key in `.env` and it runs:
+
+```
+BBL_LLM_API_KEY=...
+```
+
+That endpoint is **not** Azure OpenAI chat-completions. It is the **Responses API** behind an Azure API Management gateway, which differs in four ways that the provider has to handle:
+
+| | Chat Completions | Responses API |
+| --- | --- | --- |
+| System prompt | a `system` message | top-level `instructions` |
+| History | `messages` | flat `input` list of typed items |
+| Tool schema | nested `{"function": {...}}` | flat `{"type","name","parameters"}` |
+| Tool result | `{"role":"tool","tool_call_id"}` | `{"type":"function_call_output","call_id"}` |
+
+The subtle one: gpt-5-mini is a reasoning model, and a `function_call` replayed **without the `reasoning` item it was emitted with** is rejected outright. `Message.raw_items` carries the provider's own output items back verbatim so the round trip survives, which is why the abstraction has an escape hatch for provider-native payloads.
+
+### Living inside 1000 tokens/minute
+
+The grant is metered, and gpt-5-mini bills hidden reasoning tokens — a three-word answer cost 192 of them at default effort. Four settings keep a full query inside roughly 3,600 tokens:
+
+- `reasoning_effort: low` — reasoning tokens per call drop about 3×
+- `parallel_tool_calls: false` and `max_tool_calls: 1` — every parallel search replays its **entire** result into the next request; five searches at once cost 4,302 tokens on a single call
+- `top_k` is not exposed in the tool schema, so the model cannot raise the snippet count past the configured budget
+- `max_snippet_chars: 700` — one full chunk, without the metered tail
+
+On a 429 the provider honours the gateway's `Retry-After` (60s) rather than an exponential backoff that starts in milliseconds and could never clear a per-minute window.
+
+Note the gateway's `x-ratelimit-limit-tokens` header advertises 250,000/min — that reflects the upstream Azure deployment, not the per-key policy. The 1,000/min figure in the grant email is the one that actually bites.
+
+## Connecting a different model
 
 1. Put the key in `.env` (see `.env.example`) — never in `config.yml`:
    ```
