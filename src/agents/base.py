@@ -83,6 +83,7 @@ class BaseAgent(ABC):
                         role="assistant",
                         content=response.content,
                         tool_calls=response.tool_calls,
+                        raw_items=response.raw_items,
                     )
                 )
 

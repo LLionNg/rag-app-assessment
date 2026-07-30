@@ -20,19 +20,15 @@ class KnowledgeSearchTool(Tool):
         "Use focused, keyword-rich queries. Call it more than once with different "
         "wording when a question covers several topics."
     )
+    # `top_k` is deliberately not exposed: the model would set its own value and
+    # override the configured budget, which matters when tokens are metered.
     parameters: ClassVar[dict[str, Any]] = {
         "type": "object",
         "properties": {
             "query": {
                 "type": "string",
                 "description": "Keyword-rich search phrase, not a full sentence.",
-            },
-            "top_k": {
-                "type": "integer",
-                "description": "Maximum number of snippets to return.",
-                "minimum": 1,
-                "maximum": 10,
-            },
+            }
         },
         "required": ["query"],
     }
