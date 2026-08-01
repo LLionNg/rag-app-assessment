@@ -15,14 +15,6 @@ _SNIPPET_PREVIEW_CHARS = 220
 
 
 class WebUI:
-    """Gradio front end over the same two-agent pipeline the CLI drives.
-
-    The Application is built on the first question rather than at construction:
-    it owns an httpx client and an in-process embedding model, both of which
-    must belong to the event loop Gradio ends up running, not to whichever loop
-    happened to be current at import time.
-    """
-
     def __init__(self, settings: Settings) -> None:
         self.settings = settings
         self._app: Application | None = None
@@ -35,20 +27,37 @@ class WebUI:
                 self._app = await Application.create(self.settings)
         return self._app
 
-    async def answer(self, query: str) -> tuple[str, str, list[list[str]], str, str]:
+    async def answer(self, query: str, history: list[dict]):
+        """Answer one question, yielding the pending turn before the real one.
+
+        Each question is answered on its own: the pipeline is single-turn, so
+        the transcript is a record of past turns rather than context the agents
+        read back.
+        """
         query = (query or "").strip()
         if not query:
-            return ("_Ask something to begin._", "", [], "", "")
+            gr.Warning("Please enter a question.")
+            yield query, history, "", [], "", ""
+            return
+
+        history = [
+            *history,
+            {"role": "user", "content": query},
+            {"role": "assistant", "content": "Thinking…"},
+        ]
+        yield "", history, "", [], "", ""
 
         try:
             application = await self._application()
             result = await application.ask(query)
         except RagAppError as exc:
             logger.error("{}", exc)
-            return (f"**Error**\n\n{exc}", "", [], "", "")
+            yield "", self._replied(history, f"**Error**\n\n{exc}"), "", [], "", ""
+            return
 
-        return (
-            result.answer or "_The model returned nothing._",
+        yield (
+            "",
+            self._replied(history, result.answer or "_The model returned nothing._"),
             self._render_searches(result),
             self._render_snippets(result),
             f"**Coverage note**\n\n{result.retrieval.notes}"
@@ -56,6 +65,11 @@ class WebUI:
             else "",
             self._render_stats(result),
         )
+
+    @staticmethod
+    def _replied(history: list[dict], content: str) -> list[dict]:
+        """Swap the pending assistant turn for the real one."""
+        return [*history[:-1], {"role": "assistant", "content": content}]
 
     @staticmethod
     def _render_searches(result: PipelineResult) -> str:
@@ -97,28 +111,31 @@ class WebUI:
         with gr.Blocks(title=settings.ui.title) as interface:
             gr.Markdown(
                 f"# {settings.ui.title}\n"
-                "**Data Retriever** searches the knowledge base and returns raw "
-                "snippets. **Report Generator** turns those snippets into a "
-                "cited answer. It never answers from anything else."
+                "Answers come only from the knowledge base, with citations."
+            )
+
+            chatbot = gr.Chatbot(
+                label=settings.ui.title,
+                height=520,
+                line_breaks=True,
+            )
+
+            question = gr.Textbox(
+                label="Your question",
+                placeholder="Type your question here…",
+                autofocus=True,
             )
 
             with gr.Row():
-                question = gr.Textbox(
-                    label="Question",
-                    placeholder="What is the policy on international travel?",
-                    lines=2,
-                    scale=5,
-                )
-                ask = gr.Button("Ask", variant="primary", scale=1)
+                ask = gr.Button("Ask", variant="primary", scale=2)
+                reset = gr.Button("Reset conversation", variant="secondary", scale=1)
 
             if settings.demo.queries:
-                gr.Examples(
-                    examples=settings.demo.queries, inputs=question, label="Try"
-                )
+                gr.Examples(examples=settings.demo.queries, inputs=question)
 
-            answer = gr.Markdown(label="Answer", value="_Ask something to begin._")
+            stats = gr.Markdown()
 
-            with gr.Accordion("Retrieval trace", open=True):
+            with gr.Accordion("Retrieval trace", open=False):
                 searches = gr.Markdown()
                 snippets = gr.Dataframe(
                     headers=["chunk", "score", "source", "text"],
@@ -129,11 +146,10 @@ class WebUI:
                 )
                 notes = gr.Markdown()
 
-            stats = gr.Markdown()
-
-            outputs = [answer, searches, snippets, notes, stats]
-            ask.click(self.answer, inputs=question, outputs=outputs)
-            question.submit(self.answer, inputs=question, outputs=outputs)
+            outputs = [question, chatbot, searches, snippets, notes, stats]
+            ask.click(self.answer, inputs=[question, chatbot], outputs=outputs)
+            question.submit(self.answer, inputs=[question, chatbot], outputs=outputs)
+            reset.click(lambda: ("", [], "", [], "", ""), outputs=outputs)
 
         return interface
 
@@ -146,5 +162,6 @@ class WebUI:
             share=ui.share,
             inbrowser=ui.open_browser,
             theme=gr.themes.Soft(),
+            css="footer {visibility: hidden}",
             quiet=True,
         )

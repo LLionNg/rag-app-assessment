@@ -42,14 +42,19 @@ That opens the web interface on `http://127.0.0.1:7860`, which shows both agents
 uv run rag-app "What is the policy on international travel?"
 ```
 
-The default configuration is fully local: **BGE-M3 embeddings** running in-process and the **mock LLM provider**. No API key, and no network access after the first run. It exercises the real agent loop, the real tool call and the real vector retrieval — only the model's wording is a placeholder.
+The default configuration answers with **gpt-5-mini** through the assessment gateway and embeds locally with **BGE-M3**, so it needs `BBL_LLM_API_KEY` in `.env` (see below) and the `bge-flag` extra above. That extra pulls torch, and the first run downloads the BGE-M3 weights into the HuggingFace cache (~4 GB on disk).
 
-That extra pulls torch, and the first run downloads the BGE-M3 weights into the HuggingFace cache (~4 GB on disk). To skip both, switch to keyword retrieval — plain `uv sync` is then enough:
+### Running it with nothing installed and no key
+
+Every part of the pipeline has an offline stand-in. Plain `uv sync` and these three settings run the real agent loop, the real tool call and real BM25 retrieval, with only the model's wording replaced:
 
 ```yaml
+llm:        { provider: mock }
 embeddings: { provider: null }
 retrieval:  { strategy: keyword }
 ```
+
+`uv run pytest` also passes on a bare `uv sync`, with no extras and no key.
 
 | Command | What it does |
 | --- | --- |
