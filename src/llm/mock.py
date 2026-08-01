@@ -36,7 +36,9 @@ class MockLLMProvider(LLMProvider):
     ) -> LLMResponse:
         if tools and not self._has_tool_result(messages):
             return self._tool_call(messages, tools[0])
-        if tools:
+        # Branch on whether searches have happened, not on whether tools are
+        # still offered: the last retriever turn has its tools withdrawn.
+        if self._has_tool_result(messages):
             return self._coverage_note(messages)
         return self._draft_answer(messages)
 
