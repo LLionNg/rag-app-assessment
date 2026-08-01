@@ -42,6 +42,11 @@ def build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="show only the report, suppressing progress logs",
     )
+    parser.add_argument(
+        "--ui",
+        action="store_true",
+        help="launch the web interface (the default when no query is given)",
+    )
     return parser
 
 
@@ -69,7 +74,7 @@ async def run(args: argparse.Namespace) -> int:
         for query in queries:
             print_result(await app.ask(query), show_snippets=not args.no_snippets)
 
-        if args.interactive or not queries:
+        if args.interactive:
             await interactive_loop(app, show_snippets=not args.no_snippets)
 
     return 0
@@ -90,9 +95,27 @@ async def interactive_loop(app: Application, show_snippets: bool) -> None:
             logger.error("{}", exc)
 
 
+def serve_ui(args: argparse.Namespace) -> int:
+    """Gradio owns its own event loop, so this path stays outside asyncio.run."""
+    from src.ui.gradio_app import WebUI
+
+    settings = load_settings(args.config)
+    if args.quiet:
+        settings.logging.level = "ERROR"
+    configure_logging(settings.logging)
+    if args.reindex:
+        settings.embeddings.store.refresh = True
+
+    WebUI(settings).launch()
+    return 0
+
+
 def cli() -> int:
     args = build_parser().parse_args()
+    wants_cli = bool(args.query) or args.demo or args.interactive
     try:
+        if args.ui or not wants_cli:
+            return serve_ui(args)
         return asyncio.run(run(args))
     except KeyboardInterrupt:
         return 130

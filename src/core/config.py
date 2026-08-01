@@ -184,6 +184,14 @@ class OrchestrationConfig(BaseModel):
     engine: Literal["langgraph"] = "langgraph"
 
 
+class UIConfig(BaseModel):
+    title: str = "Two-Agent RAG"
+    host: str = "127.0.0.1"
+    port: int = Field(default=7860, gt=0, lt=65536)
+    share: bool = False
+    open_browser: bool = True
+
+
 class DemoConfig(BaseModel):
     queries: list[str] = Field(default_factory=list)
 
@@ -197,6 +205,7 @@ class Settings(BaseModel):
     retrieval: RetrievalConfig = Field(default_factory=RetrievalConfig)
     agents: AgentsConfig = Field(default_factory=AgentsConfig)
     orchestration: OrchestrationConfig = Field(default_factory=OrchestrationConfig)
+    ui: UIConfig = Field(default_factory=UIConfig)
     demo: DemoConfig = Field(default_factory=DemoConfig)
 
 
