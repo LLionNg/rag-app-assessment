@@ -13,6 +13,24 @@ from src.utils.text import collapse_whitespace, truncate
 
 _SNIPPET_PREVIEW_CHARS = 220
 
+_THEME = gr.themes.Soft(
+    font=(
+        "system-ui",
+        "-apple-system",
+        gr.themes.Font("Segoe UI"),
+        gr.themes.Font("Roboto"),
+        gr.themes.Font("Helvetica Neue"),
+        "sans-serif",
+    ),
+    font_mono=(
+        "ui-monospace",
+        gr.themes.Font("Cascadia Mono"),
+        gr.themes.Font("SF Mono"),
+        gr.themes.Font("Consolas"),
+        "monospace",
+    ),
+)
+
 
 class WebUI:
     def __init__(self, settings: Settings) -> None:
@@ -28,12 +46,6 @@ class WebUI:
         return self._app
 
     async def answer(self, query: str, history: list[dict]):
-        """Answer one question, yielding the pending turn before the real one.
-
-        Each question is answered on its own: the pipeline is single-turn, so
-        the transcript is a record of past turns rather than context the agents
-        read back.
-        """
         query = (query or "").strip()
         if not query:
             gr.Warning("Please enter a question.")
@@ -161,7 +173,7 @@ class WebUI:
             server_port=ui.port,
             share=ui.share,
             inbrowser=ui.open_browser,
-            theme=gr.themes.Soft(),
+            theme=_THEME,
             css="footer {visibility: hidden}",
             quiet=True,
         )

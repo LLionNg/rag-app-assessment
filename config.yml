@@ -84,9 +84,9 @@ knowledge_base:
   encoding: utf-8
   chunking:
     strategy: paragraph # paragraph | fixed
-    max_chars: 900
+    max_chars: 1400 # the longest policy section is 1318, so each stays one chunk
     min_chars: 80
-    overlap_chars: 120
+    overlap_chars: 180 # only applies if a future section outgrows max_chars
 
 retrieval:
   strategy: semantic # keyword | semantic | hybrid
@@ -96,7 +96,7 @@ retrieval:
     k1: 1.5
     b: 0.75
   semantic:
-    min_similarity: 0.40
+    min_similarity: 0.48 # re-measured on this corpus: on-topic >= 0.52, off-topic <= 0.44
   hybrid:
     rrf_k: 60
     weights:
@@ -110,7 +110,7 @@ agents:
     max_snippets: 4
   report_generator:
     name: Report Generator
-    max_snippet_chars: 700
+    max_snippet_chars: 1400 # matches chunking.max_chars: a whole section reaches the writer
 
 orchestration:
   engine: sequential

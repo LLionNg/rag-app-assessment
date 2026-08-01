@@ -12,4 +12,4 @@ Retriever issued, the snippets it handed over with relevance scores, its
 coverage note, and the Report Generator's cited answer.
 
 Take them with a real model configured (`llm.provider: bbl_gateway`), not with
-the mock placeholder — the mock's answers are stand-ins, not model output.
+the mock placeholder - the mock's answers are stand-ins, not model output.
