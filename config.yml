@@ -115,6 +115,13 @@ agents:
 orchestration:
   engine: sequential
 
+ui:
+  title: Two-Agent RAG
+  host: 127.0.0.1
+  port: 7860
+  share: false # true publishes a temporary public link
+  open_browser: true
+
 demo:
   queries:
     - What is the policy on international travel?

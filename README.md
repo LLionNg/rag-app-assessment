@@ -33,6 +33,12 @@ uv sync --extra bge-flag
 ```
 
 ```bash
+uv run rag-app
+```
+
+That opens the web interface on `http://127.0.0.1:7860`, which shows both agents at work: the searches the Data Retriever issued, the snippets it handed over with their relevance scores, its coverage note, and the Report Generator's cited answer. Pass a question instead to stay on the terminal:
+
+```bash
 uv run rag-app "What is the policy on international travel?"
 ```
 
@@ -47,7 +53,8 @@ retrieval:  { strategy: keyword }
 
 | Command | What it does |
 | --- | --- |
-| `uv run rag-app "<question>"` | answer one question |
+| `uv run rag-app` | launch the web interface (default when no query is given) |
+| `uv run rag-app "<question>"` | answer one question on the terminal |
 | `uv run rag-app --demo` | run every query under `demo.queries` |
 | `uv run rag-app --interactive` | ask questions in a loop |
 | `uv run rag-app --no-snippets` | hide the retrieval trace |
@@ -114,6 +121,7 @@ Everything is driven by [`config.yml`](config.yml); secrets are read from the en
 | Section | What it controls |
 | --- | --- |
 | `logging` | Level, rotating file sink, JSON serialisation |
+| `ui` | Web interface title, host, port, public share link, browser auto-open |
 | `llm` | Active provider, temperature, token cap, timeout, retries, per-provider connection settings |
 | `embeddings` | Provider (`null` disables it), batch size, expected `dimensions`, local-model `options` |
 | `embeddings.store` | Where the `.npz` index lives, and whether to reuse or rebuild it |
