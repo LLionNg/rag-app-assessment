@@ -19,4 +19,4 @@ def collapse_whitespace(text: str) -> str:
 def truncate(text: str, max_chars: int) -> str:
     if max_chars <= 0 or len(text) <= max_chars:
         return text
-    return text[: max_chars - 1].rstrip() + "…"
+    return text[: max_chars - 3].rstrip() + "..."

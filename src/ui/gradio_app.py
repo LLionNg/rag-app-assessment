@@ -55,7 +55,7 @@ class WebUI:
         history = [
             *history,
             {"role": "user", "content": query},
-            {"role": "assistant", "content": "Thinking…"},
+            {"role": "assistant", "content": "Thinking..."},
         ]
         yield "", history, "", [], "", ""
 
@@ -109,12 +109,12 @@ class WebUI:
         usage = result.usage
         settings = self.settings
         return (
-            f"`{settings.llm.provider}:{settings.llm.active().model}` · "
-            f"retrieval `{settings.retrieval.strategy}` · "
-            f"engine `{settings.orchestration.engine}` · "
-            f"**{len(result.retrieval.snippets)}** snippets · "
+            f"`{settings.llm.provider}:{settings.llm.active().model}` | "
+            f"retrieval `{settings.retrieval.strategy}` | "
+            f"engine `{settings.orchestration.engine}` | "
+            f"**{len(result.retrieval.snippets)}** snippets | "
             f"**{usage.total_tokens}** tokens "
-            f"({usage.prompt_tokens} in / {usage.completion_tokens} out) · "
+            f"({usage.prompt_tokens} in / {usage.completion_tokens} out) | "
             f"**{result.elapsed_ms / 1000:.1f}s**"
         )
 
@@ -134,7 +134,7 @@ class WebUI:
 
             question = gr.Textbox(
                 label="Your question",
-                placeholder="Type your question here…",
+                placeholder="Type your question here...",
                 autofocus=True,
             )
 

@@ -77,7 +77,7 @@ Every command runs inside the locked environment, so there is nothing to activat
 docker compose up --build
 ```
 
-The UI is then on `http://localhost:7860`. Put `BBL_LLM_API_KEY` in `.env` first — compose reads it at runtime and it never enters an image layer.
+The UI is then on `http://localhost:7860`. Put `BBL_LLM_API_KEY` in `.env` first - compose reads it at runtime and it never enters an image layer.
 
 The image is built in two stages, each on the base image suited to its job. The build stage uses `ghcr.io/astral-sh/uv:python3.11-bookworm-slim`, so uv is already present and `uv sync --frozen` reproduces `uv.lock` exactly with no bootstrap step; dependencies resolve in a layer keyed only on `pyproject.toml` and `uv.lock`, so editing code does not reinstall them. The runtime stage is plain `python:3.11-slim-bookworm` and receives only the finished `/app/.venv`, leaving uv, the build caches, and the toolchain behind. It runs as a non-root user.
 
@@ -88,7 +88,7 @@ The image is built in two stages, each on the base image suited to its job. The 
 | `rag-app` (default) | `keyword` | ~510 MB | no torch, no downloads |
 | `rag-app-semantic` (profile `semantic`) | `semantic` | ~2.0 GB | `--build-arg EXTRAS=bge-flag`; then ~2 GB of BGE-M3 weights into a named volume on first run |
 
-The semantic image installs **CPU-only torch**. On Linux the default PyPI wheel drags in the entire CUDA runtime — 43 `nvidia-*` packages and several GB — which is dead weight in a CPU inference image, so `pyproject.toml` points torch at the PyTorch CPU index for `sys_platform == 'linux'` only. Windows and macOS still resolve the identical `2.13.0` wheels from PyPI, so local development is unaffected. The Linux download drops from multiple GB to 183 MB.
+The semantic image installs **CPU-only torch**. On Linux the default PyPI wheel drags in the entire CUDA runtime - 43 `nvidia-*` packages and several GB - which is dead weight in a CPU inference image, so `pyproject.toml` points torch at the PyTorch CPU index for `sys_platform == 'linux'` only. Windows and macOS still resolve the identical `2.13.0` wheels from PyPI, so local development is unaffected. The Linux download drops from multiple GB to 183 MB.
 
 ```bash
 docker compose --profile semantic up --build
@@ -98,7 +98,7 @@ Container settings live in their own files rather than in `config.yml`, which st
 
 | File | Extends | Overrides |
 | --- | --- | --- |
-| [`config.yml`](config.yml) | — | the local defaults |
+| [`config.yml`](config.yml) | - | the local defaults |
 | [`config.docker.yml`](config.docker.yml) | `config.yml` | binds `0.0.0.0`, no browser, keyword retrieval, embeddings off |
 | [`config.docker.semantic.yml`](config.docker.semantic.yml) | `config.docker.yml` | puts semantic retrieval and BGE-M3 back |
 
@@ -129,20 +129,20 @@ The subtle one: gpt-5-mini is a reasoning model, and a `function_call` replayed 
 
 ### Living inside 1000 tokens/minute
 
-The grant is metered, and gpt-5-mini bills hidden reasoning tokens — a three-word answer cost 192 of them at default effort. Four settings keep the prompt for a full query near 3,100–3,250 tokens, and the whole two-agent round trip inside roughly 4,000–4,900:
+The grant is metered, and gpt-5-mini bills hidden reasoning tokens - a three-word answer cost 192 of them at default effort. Four settings keep the prompt for a full query near 3,100-3,250 tokens, and the whole two-agent round trip inside roughly 4,000-4,900:
 
-- `reasoning_effort: low` — reasoning tokens per call drop about 3×
-- `parallel_tool_calls: false` and `max_tool_calls: 1` — every parallel search replays its **entire** result into the next request; five searches at once cost 4,302 tokens on a single call
+- `reasoning_effort: low` - reasoning tokens per call drop about 3x
+- `parallel_tool_calls: false` and `max_tool_calls: 1` - every parallel search replays its **entire** result into the next request; five searches at once cost 4,302 tokens on a single call
 - `top_k` is not exposed in the tool schema, so the model cannot raise the snippet count past the configured budget
-- `max_snippet_chars: 1400` — matches `chunking.max_chars`, so a whole policy section reaches the writer rather than half of one
+- `max_snippet_chars: 1400` - matches `chunking.max_chars`, so a whole policy section reaches the writer rather than half of one
 
 On a 429 the provider honours the gateway's `Retry-After` (60s) rather than an exponential backoff that starts in milliseconds and could never clear a per-minute window.
 
-Note the gateway's `x-ratelimit-limit-tokens` header advertises 250,000/min — that reflects the upstream Azure deployment, not the per-key policy. The 1,000/min figure in the grant email is the one that actually bites.
+Note the gateway's `x-ratelimit-limit-tokens` header advertises 250,000/min - that reflects the upstream Azure deployment, not the per-key policy. The 1,000/min figure in the grant email is the one that actually bites.
 
 ## Connecting a different model
 
-1. Put the key in `.env` (see `.env.example`) — never in `config.yml`:
+1. Put the key in `.env` (see `.env.example`) - never in `config.yml`:
    ```
    AZURE_OPENAI_API_KEY=...
    ```
@@ -175,33 +175,33 @@ Everything is driven by [`config.yml`](config.yml); secrets are read from the en
 
 ### Retrieval strategies
 
-- **`semantic`** (default) — cosine similarity over BGE-M3 embeddings. Handles paraphrase.
-- **`keyword`** — in-memory BM25. No model, no download, exact-term precision.
-- **`hybrid`** — weighted reciprocal rank fusion of the two.
+- **`semantic`** (default) - cosine similarity over BGE-M3 embeddings. Handles paraphrase.
+- **`keyword`** - in-memory BM25. No model, no download, exact-term precision.
+- **`hybrid`** - weighted reciprocal rank fusion of the two.
 
-BM25 scores are normalised to 0–1, so `retrieval.min_score` acts as a relative floor there. Cosine values are kept raw and gated by `retrieval.semantic.min_similarity` instead. Chunks with no signal at all are dropped before ranking, so an off-topic question correctly returns nothing.
+BM25 scores are normalised to 0-1, so `retrieval.min_score` acts as a relative floor there. Cosine values are kept raw and gated by `retrieval.semantic.min_similarity` instead. Chunks with no signal at all are dropped before ranking, so an off-topic question correctly returns nothing.
 
-**`min_similarity` is model-specific and must be re-measured whenever the embedding model *or the corpus* changes.** An absolute cosine floor does not transfer. Measured over 13 on-topic and 10 off-topic questions, BGE-M3 puts on-topic best hits at 0.53–0.73 and off-topic best hits at or below 0.44, so `0.48` sits in the middle of a clean gap: every relevant chunk survives and nothing irrelevant leaks. The floor is doing real work — at 0.40 four of the ten off-topic questions leak a chunk, because a 24-section handbook offers more surface for a coincidental match. *"How do I train for a marathon?"* scores 0.44 against **TRAINING AND PROFESSIONAL DEVELOPMENT** on the strength of one shared word. Set it too high instead and retrieval silently starves the Report Generator no matter what `top_k` says.
+**`min_similarity` is model-specific and must be re-measured whenever the embedding model *or the corpus* changes.** An absolute cosine floor does not transfer. Measured over 13 on-topic and 10 off-topic questions, BGE-M3 puts on-topic best hits at 0.53-0.73 and off-topic best hits at or below 0.44, so `0.48` sits in the middle of a clean gap: every relevant chunk survives and nothing irrelevant leaks. The floor is doing real work - at 0.40 four of the ten off-topic questions leak a chunk, because a 24-section handbook offers more surface for a coincidental match. *"How do I train for a marathon?"* scores 0.44 against **TRAINING AND PROFESSIONAL DEVELOPMENT** on the strength of one shared word. Set it too high instead and retrieval silently starves the Report Generator no matter what `top_k` says.
 
-Why `hybrid` is worth considering: BM25 alone cannot bridge vocabulary. Ask *"How do I get money back after a trip overseas?"* and it misses the reimbursement section entirely — `overseas` appears nowhere in the corpus, and `money` appears once, inside the financial-crime section. BM25 ranks **SICK LEAVE AND MEDICAL ABSENCE** first, on nothing more than incidental function words. Embeddings fix that. Conversely BM25 is sharper on the exact tokens this corpus is full of — `USD 220`, `Tier 1`, `grade 5`, named portals — which embeddings blur.
+Why `hybrid` is worth considering: BM25 alone cannot bridge vocabulary. Ask *"How do I get money back after a trip overseas?"* and it misses the reimbursement section entirely - `overseas` appears nowhere in the corpus, and `money` appears once, inside the financial-crime section. BM25 ranks **SICK LEAVE AND MEDICAL ABSENCE** first, on nothing more than incidental function words. Embeddings fix that. Conversely BM25 is sharper on the exact tokens this corpus is full of - `USD 220`, `Tier 1`, `grade 5`, named portals - which embeddings blur.
 
 ## Embedding pipeline
 
 Everything runs locally through [`BGEM3EmbeddingProvider`](src/embeddings/bge_m3.py); there is no vector database.
 
-1. `knowledge_base.txt` is chunked (24 paragraph chunks by default — one per policy section, since `max_chars: 1400` clears the longest section at 1,318 characters)
-2. Chunks are embedded in batches to **1024-dim** dense vectors. Encoding is blocking work, so it runs in a worker thread behind a lock — one in-process model must not be entered concurrently
+1. `knowledge_base.txt` is chunked (24 paragraph chunks by default - one per policy section, since `max_chars: 1400` clears the longest section at 1,318 characters)
+2. Chunks are embedded in batches to **1024-dim** dense vectors. Encoding is blocking work, so it runs in a worker thread behind a lock - one in-process model must not be entered concurrently
 3. Vectors are written verbatim to `data/index/knowledge_base.npz`, beside a Pydantic-validated `knowledge_base.json` manifest
 4. Later runs load the `.npz` and skip embedding entirely
 
-The manifest carries an `IndexFingerprint` — model name, dimensions, chunk count, and a SHA-256 digest of the exact chunk text. It is compared by equality, so editing the knowledge base, changing the chunking strategy, or switching embedding model all invalidate the index automatically. Force a rebuild with `--reindex`.
+The manifest carries an `IndexFingerprint` - model name, dimensions, chunk count, and a SHA-256 digest of the exact chunk text. It is compared by equality, so editing the knowledge base, changing the chunking strategy, or switching embedding model all invalidate the index automatically. Force a rebuild with `--reindex`.
 
 Two Pydantic guards make the 1024-dim contract explicit rather than assumed:
 
 - `embeddings.providers.bge_m3.dimensions: 1024` is checked against **every** batch in `EmbeddingProvider._assert_dimensions`, so a misconfigured model raises instead of silently writing vectors of the wrong width
 - `EmbeddingManifest` has a `model_validator` rejecting a manifest whose chunk-id list disagrees with its fingerprint
 
-Cosine similarity is our own function in [`similarity.py`](src/retrieval/similarity.py) — `dot(a, b) / (‖a‖·‖b‖)`, the same formula the reference service uses, evaluated for the whole corpus in one matrix product and unit-tested against a row-by-row implementation.
+Cosine similarity is our own function in [`similarity.py`](src/retrieval/similarity.py) - `dot(a, b) / (norm(a) * norm(b))`, the same formula the reference service uses, evaluated for the whole corpus in one matrix product and unit-tested against a row-by-row implementation.
 
 ### Swapping the backend
 
@@ -212,7 +212,7 @@ Cosine similarity is our own function in [`similarity.py`](src/retrieval/similar
 | `flag_embedding` (default) | `uv sync --extra bge-flag` | `BGEM3FlagModel`, the loader the reference service uses |
 | `sentence_transformers` | `uv sync --extra bge` | Lighter dependency tree |
 
-Hosted embeddings remain available by pointing `embeddings.provider` at `azure_openai` or `openai` — the retriever, the store and the similarity function are unchanged, only the provider differs.
+Hosted embeddings remain available by pointing `embeddings.provider` at `azure_openai` or `openai` - the retriever, the store and the similarity function are unchanged, only the provider differs.
 
 ## Branches
 
@@ -221,14 +221,14 @@ Hosted embeddings remain available by pointing `embeddings.provider` at `azure_o
 | `main` | LangGraph `StateGraph` | `langgraph` |
 | `framework-free` (this one) | Plain `asyncio` | none for orchestration |
 
-Only the orchestration layer differs — one module and one registry entry. Providers, retrieval, tools, agents, prompts and config are identical, which is the point of keeping the framework at the edge of the design: here the whole workflow is two awaits in [`sequential_pipeline.py`](src/orchestration/sequential_pipeline.py).
+Only the orchestration layer differs - one module and one registry entry. Providers, retrieval, tools, agents, prompts and config are identical, which is the point of keeping the framework at the edge of the design: here the whole workflow is two awaits in [`sequential_pipeline.py`](src/orchestration/sequential_pipeline.py).
 
 ```python
 retrieval = await self.retriever_agent.run(query)
 report = await self.report_agent.run(retrieval)
 ```
 
-The framework buys nothing at this size. It starts to pay off with branching, retries per node, checkpointing, or human-in-the-loop pauses — none of which this workflow has.
+The framework buys nothing at this size. It starts to pay off with branching, retries per node, checkpointing, or human-in-the-loop pauses - none of which this workflow has.
 
 ## Sample output
 
@@ -246,13 +246,13 @@ Captured from the web interface against **gpt-5-mini** through the assessment ga
 
 ![Retrieval trace for the reimbursement question](docs/screenshots/3-1.png)
 
-**What are the rules for working from home and keeping customer data safe?** — the interesting one: the answer is stitched from four separate policy sections.
+**What are the rules for working from home and keeping customer data safe?** - the interesting one: the answer is stitched from four separate policy sections.
 
 ![Answer to the working from home question](docs/screenshots/1.png)
 
 ![Retrieval trace for the working from home question](docs/screenshots/1-1.png)
 
-The second image in each pair is the **Retrieval trace** panel: the search the Data Retriever actually issued, the snippets it handed over with their cosine scores, and its coverage note — including what it could *not* find, which is what stops the Report Generator inventing the rest.
+The second image in each pair is the **Retrieval trace** panel: the search the Data Retriever actually issued, the snippets it handed over with their cosine scores, and its coverage note - including what it could *not* find, which is what stops the Report Generator inventing the rest.
 
 They are captured with a real model configured; the mock provider's answers are placeholders and would not show the synthesis quality the Report Generator is judged on.
 
