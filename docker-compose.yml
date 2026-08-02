@@ -1,9 +1,8 @@
-# `docker compose up` serves the Gradio UI on http://localhost:7860.
+# `docker compose up` serves the UI on http://localhost:7860.
 #
-# Two services, same Dockerfile, different weight class:
 #   rag-app           default. BM25 retrieval, no torch, quick to build.
-#   rag-app-semantic  profile "semantic". Adds the BGE-M3 stack and pulls
-#                     ~2 GB of model weights into a named volume on first run.
+#   rag-app-semantic  profile "semantic". Adds BGE-M3 and pulls ~2 GB of
+#                     weights into a named volume on first run.
 name: rag-app-assessment
 
 services:
@@ -13,13 +12,9 @@ services:
       dockerfile: Dockerfile
     image: rag-app-assessment:latest
     ports:
-      - "${UI_PORT:-7860}:7860"
-    environment:
-      RETRIEVAL_STRATEGY: keyword # no embedding model in this image
-      EMBEDDINGS_PROVIDER: "" # empty disables embeddings entirely
-      LLM_PROVIDER: ${LLM_PROVIDER:-bbl_gateway}
+      - "7860:7860"
     env_file:
-      - path: .env # API keys; see .env.example
+      - path: .env
         required: false
     volumes:
       - ./logs:/app/logs
@@ -33,18 +28,16 @@ services:
       args:
         EXTRAS: bge-flag
     image: rag-app-assessment:semantic
+    entrypoint: ["rag-app", "-c", "config.docker.semantic.yml"]
     ports:
-      - "${UI_PORT:-7860}:7860"
-    environment:
-      RETRIEVAL_STRATEGY: ${RETRIEVAL_STRATEGY:-semantic}
-      LLM_PROVIDER: ${LLM_PROVIDER:-bbl_gateway}
+      - "7860:7860"
     env_file:
       - path: .env
         required: false
     volumes:
       - ./logs:/app/logs
-      - hf-cache:/home/app/.cache/huggingface # keeps BGE-M3 across restarts
-      - index:/app/data/index # keeps the derived vectors
+      - hf-cache:/home/app/.cache/huggingface
+      - index:/app/data/index
     restart: unless-stopped
 
 volumes:

@@ -94,13 +94,19 @@ The semantic image installs **CPU-only torch**. On Linux the default PyPI wheel 
 docker compose --profile semantic up --build
 ```
 
-Both services read the same `config.yml`. A handful of its settings expand `${VAR:-default}` placeholders so a container can override them without a second config file — `LLM_PROVIDER`, `RETRIEVAL_STRATEGY`, `EMBEDDINGS_PROVIDER`, `UI_HOST`, `UI_OPEN_BROWSER`. Defaults are unchanged when the variables are unset, so local `uv run` behaves exactly as before. The same switches give you the offline stand-in without editing YAML:
+Container settings live in their own files rather than in `config.yml`, which stays exactly as it is for local runs. A config may name a base with `extends:`, and its own keys are merged over it, so each override file holds only what actually differs:
+
+| File | Extends | Overrides |
+| --- | --- | --- |
+| [`config.yml`](config.yml) | — | the local defaults |
+| [`config.docker.yml`](config.docker.yml) | `config.yml` | binds `0.0.0.0`, no browser, keyword retrieval, embeddings off |
+| [`config.docker.semantic.yml`](config.docker.semantic.yml) | `config.docker.yml` | puts semantic retrieval and BGE-M3 back |
+
+The image selects one with `-c`: `ENTRYPOINT ["rag-app", "-c", "config.docker.yml"]`, which the semantic service replaces with its own. Passing arguments runs the CLI; passing none serves the UI, the same contract as `rag-app`.
 
 ```bash
-docker run --rm -e LLM_PROVIDER=mock -e RETRIEVAL_STRATEGY=keyword -e EMBEDDINGS_PROVIDER= rag-app-assessment:latest "How much parental leave am I entitled to?"
+docker run --rm --env-file .env rag-app-assessment:latest "How much parental leave am I entitled to?"
 ```
-
-Passing arguments runs the CLI; passing none serves the UI, the same contract as `rag-app`.
 
 ## The assessment gateway (gpt-5-mini)
 
@@ -152,7 +158,7 @@ To use any OpenAI-compatible endpoint instead, set `llm.provider: openai` and po
 
 ## Configuration
 
-Everything is driven by [`config.yml`](config.yml); secrets are read from the environment via the `api_key_env` indirection. Values support `${VAR}` and `${VAR:-default}` expansion. Point at a different file with `--config path/to/config.yml`.
+Everything is driven by [`config.yml`](config.yml); secrets are read from the environment via the `api_key_env` indirection. Values support `${VAR}` and `${VAR:-default}` expansion, and a file may layer over another with `extends:`. Point at a different file with `-c path/to/config.yml`.
 
 | Section | What it controls |
 | --- | --- |

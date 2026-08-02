@@ -10,7 +10,7 @@ logging:
   serialize: false
 
 llm:
-  provider: "${LLM_PROVIDER:-bbl_gateway}" # azure_openai | bbl_gateway | openai | mock
+  provider: bbl_gateway # azure_openai | bbl_gateway | openai | mock
   temperature: 0.2
   max_tokens: 2048
   timeout_seconds: 120
@@ -45,7 +45,7 @@ llm:
       model: mock-llm
 
 embeddings:
-  provider: "${EMBEDDINGS_PROVIDER:-bge_m3}" # empty disables embeddings entirely
+  provider: bge_m3 # null disables embeddings entirely
   batch_size: 16 # texts per concurrent task (see options.batch_size for the model's own)
   timeout_seconds: 300
   max_retries: 1
@@ -84,19 +84,19 @@ knowledge_base:
   encoding: utf-8
   chunking:
     strategy: paragraph # paragraph | fixed
-    max_chars: 1400 # the longest policy section is 1318, so each stays one chunk
+    max_chars: 1400 # longest section is 1318, so each stays one chunk
     min_chars: 80
-    overlap_chars: 180 # only applies if a future section outgrows max_chars
+    overlap_chars: 180
 
 retrieval:
-  strategy: "${RETRIEVAL_STRATEGY:-semantic}" # keyword | semantic | hybrid
+  strategy: semantic # keyword | semantic | hybrid
   top_k: 5
   min_score: 0.05
   keyword:
     k1: 1.5
     b: 0.75
   semantic:
-    min_similarity: 0.48 # re-measured on this corpus: on-topic >= 0.52, off-topic <= 0.44
+    min_similarity: 0.48 # measured: on-topic >= 0.52, off-topic <= 0.44
   hybrid:
     rrf_k: 60
     weights:
@@ -110,17 +110,17 @@ agents:
     max_snippets: 4
   report_generator:
     name: Report Generator
-    max_snippet_chars: 1400 # matches chunking.max_chars: a whole section reaches the writer
+    max_snippet_chars: 1400 # matches chunking.max_chars
 
 orchestration:
   engine: sequential
 
 ui:
   title: Two-Agent RAG
-  host: "${UI_HOST:-127.0.0.1}" # containers must bind 0.0.0.0
+  host: 127.0.0.1
   port: 7860
   share: false # true publishes a temporary public link
-  open_browser: "${UI_OPEN_BROWSER:-true}"
+  open_browser: true
 
 demo:
   queries:
