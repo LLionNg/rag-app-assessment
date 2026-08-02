@@ -71,6 +71,37 @@ retrieval:  { strategy: keyword }
 
 Every command runs inside the locked environment, so there is nothing to activate. `uv run python -m src.main ...` is equivalent to `uv run rag-app ...`.
 
+## Docker
+
+```bash
+docker compose up --build
+```
+
+The UI is then on `http://localhost:7860`. Put `BBL_LLM_API_KEY` in `.env` first — compose reads it at runtime and it never enters an image layer.
+
+The image is built in two stages, each on the base image suited to its job. The build stage uses `ghcr.io/astral-sh/uv:python3.11-bookworm-slim`, so uv is already present and `uv sync --frozen` reproduces `uv.lock` exactly with no bootstrap step; dependencies resolve in a layer keyed only on `pyproject.toml` and `uv.lock`, so editing code does not reinstall them. The runtime stage is plain `python:3.11-slim-bookworm` and receives only the finished `/app/.venv`, leaving uv, the build caches, and the toolchain behind. It runs as a non-root user.
+
+**The default image leaves out the embedding stack**, which is what keeps it at roughly 510 MB of layers and about a minute to build. It runs BM25 retrieval, which needs no model:
+
+| Service | Retrieval | Layers | Notes |
+| --- | --- | --- | --- |
+| `rag-app` (default) | `keyword` | ~510 MB | no torch, no downloads |
+| `rag-app-semantic` (profile `semantic`) | `semantic` | ~2.0 GB | `--build-arg EXTRAS=bge-flag`; then ~2 GB of BGE-M3 weights into a named volume on first run |
+
+The semantic image installs **CPU-only torch**. On Linux the default PyPI wheel drags in the entire CUDA runtime — 43 `nvidia-*` packages and several GB — which is dead weight in a CPU inference image, so `pyproject.toml` points torch at the PyTorch CPU index for `sys_platform == 'linux'` only. Windows and macOS still resolve the identical `2.13.0` wheels from PyPI, so local development is unaffected. The Linux download drops from multiple GB to 183 MB.
+
+```bash
+docker compose --profile semantic up --build
+```
+
+Both services read the same `config.yml`. A handful of its settings expand `${VAR:-default}` placeholders so a container can override them without a second config file — `LLM_PROVIDER`, `RETRIEVAL_STRATEGY`, `EMBEDDINGS_PROVIDER`, `UI_HOST`, `UI_OPEN_BROWSER`. Defaults are unchanged when the variables are unset, so local `uv run` behaves exactly as before. The same switches give you the offline stand-in without editing YAML:
+
+```bash
+docker run --rm -e LLM_PROVIDER=mock -e RETRIEVAL_STRATEGY=keyword -e EMBEDDINGS_PROVIDER= rag-app-assessment:latest "How much parental leave am I entitled to?"
+```
+
+Passing arguments runs the CLI; passing none serves the UI, the same contract as `rag-app`.
+
 ## The assessment gateway (gpt-5-mini)
 
 The default `llm.provider` is `bbl_gateway`. Put the key in `.env` and it runs:

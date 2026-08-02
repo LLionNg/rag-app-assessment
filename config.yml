@@ -10,7 +10,7 @@ logging:
   serialize: false
 
 llm:
-  provider: bbl_gateway # azure_openai | bbl_gateway | openai | mock
+  provider: "${LLM_PROVIDER:-bbl_gateway}" # azure_openai | bbl_gateway | openai | mock
   temperature: 0.2
   max_tokens: 2048
   timeout_seconds: 120
@@ -45,7 +45,7 @@ llm:
       model: mock-llm
 
 embeddings:
-  provider: bge_m3
+  provider: "${EMBEDDINGS_PROVIDER:-bge_m3}" # empty disables embeddings entirely
   batch_size: 16 # texts per concurrent task (see options.batch_size for the model's own)
   timeout_seconds: 300
   max_retries: 1
@@ -89,7 +89,7 @@ knowledge_base:
     overlap_chars: 180 # only applies if a future section outgrows max_chars
 
 retrieval:
-  strategy: semantic # keyword | semantic | hybrid
+  strategy: "${RETRIEVAL_STRATEGY:-semantic}" # keyword | semantic | hybrid
   top_k: 5
   min_score: 0.05
   keyword:
@@ -117,10 +117,10 @@ orchestration:
 
 ui:
   title: Two-Agent RAG
-  host: 127.0.0.1
+  host: "${UI_HOST:-127.0.0.1}" # containers must bind 0.0.0.0
   port: 7860
   share: false # true publishes a temporary public link
-  open_browser: true
+  open_browser: "${UI_OPEN_BROWSER:-true}"
 
 demo:
   queries:
