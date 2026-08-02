@@ -226,7 +226,29 @@ The framework buys nothing at this size. It starts to pay off with branching, re
 
 ## Sample output
 
-`docs/screenshots/` is where the per-query screenshots go. They should be captured with a real model configured — the mock provider's answers are placeholders and would not show the synthesis quality the Report Generator is judged on.
+Captured from the web interface against **gpt-5-mini** through the assessment gateway, with semantic retrieval over BGE-M3. Every claim carries the `[kb-nnnn]` id of the chunk it came from.
+
+**What is the policy on international travel?**
+
+![Answer to the international travel question](docs/screenshots/2.png)
+
+![Retrieval trace for the international travel question](docs/screenshots/2-1.png)
+
+**How do I get reimbursed after a business trip?**
+
+![Answer to the reimbursement question](docs/screenshots/3.png)
+
+![Retrieval trace for the reimbursement question](docs/screenshots/3-1.png)
+
+**What are the rules for working from home and keeping customer data safe?** — the interesting one: the answer is stitched from four separate policy sections.
+
+![Answer to the working from home question](docs/screenshots/1.png)
+
+![Retrieval trace for the working from home question](docs/screenshots/1-1.png)
+
+The second image in each pair is the **Retrieval trace** panel: the search the Data Retriever actually issued, the snippets it handed over with their cosine scores, and its coverage note — including what it could *not* find, which is what stops the Report Generator inventing the rest.
+
+They are captured with a real model configured; the mock provider's answers are placeholders and would not show the synthesis quality the Report Generator is judged on.
 
 ## Notes and scope
 
