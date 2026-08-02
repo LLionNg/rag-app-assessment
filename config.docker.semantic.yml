@@ -1,0 +1,7 @@
+extends: config.docker.yml
+
+retrieval:
+  strategy: semantic
+
+embeddings:
+  provider: bge_m3

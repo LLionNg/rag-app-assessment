@@ -21,8 +21,20 @@ dependencies = [
 # Local BGE-M3 embeddings. Heavy (pulls torch); install only when using them:
 #   uv sync --extra bge          sentence-transformers backend
 #   uv sync --extra bge-flag     FlagEmbedding backend (BGEM3FlagModel)
-bge = ["sentence-transformers>=3.0.0"]
-bge-flag = ["FlagEmbedding>=1.3.0"]
+# torch is named explicitly so the Linux CPU index below applies: a uv source
+# only binds to a direct dependency.
+bge = ["sentence-transformers>=3.0.0", "torch>=2.0"]
+bge-flag = ["FlagEmbedding>=1.3.0", "torch>=2.0"]
+
+# The default PyPI torch wheel pulls the whole CUDA runtime on Linux, which a
+# CPU-only container has no use for. Windows and macOS are unaffected.
+[[tool.uv.index]]
+name = "pytorch-cpu"
+url = "https://download.pytorch.org/whl/cpu"
+explicit = true
+
+[tool.uv.sources]
+torch = [{ index = "pytorch-cpu", marker = "sys_platform == 'linux'" }]
 
 [dependency-groups]
 dev = [

@@ -7,7 +7,7 @@ An agentic RAG system with two collaborating agents over a local plain-text know
 | **Data Retriever** | Retrieval specialist. Reformulates the request into focused searches and never answers it. | `search_knowledge_base` (custom RAG tool) | Raw, deduplicated text snippets |
 | **Report Generator** | Writer and synthesiser. Turns the snippets into the final answer. | none | Cited, non-redundant markdown answer |
 
-Orchestration is a sequential [LangGraph](https://langchain-ai.github.io/langgraph/) workflow: the Data Retriever's output is the only input the Report Generator receives.
+Orchestration is a sequential [LangGraph](https://langchain-ai.github.io/langgraph/) `StateGraph` workflow: the Data Retriever's output is the only input the Report Generator receives. This is the `main` branch; `framework-free` runs the identical agents through a plain `asyncio` handoff with no framework dependency.
 
 ```
                 ┌──────────────────┐   snippets    ┌───────────────────┐
@@ -42,14 +42,19 @@ That opens the web interface on `http://127.0.0.1:7860`, which shows both agents
 uv run rag-app "What is the policy on international travel?"
 ```
 
-The default configuration is fully local: **BGE-M3 embeddings** running in-process and the **mock LLM provider**. No API key, and no network access after the first run. It exercises the real agent loop, the real tool call and the real vector retrieval — only the model's wording is a placeholder.
+The default configuration answers with **gpt-5-mini** through the assessment gateway and embeds locally with **BGE-M3**, so it needs `BBL_LLM_API_KEY` in `.env` (see below) and the `bge-flag` extra above. That extra pulls torch, and the first run downloads the BGE-M3 weights into the HuggingFace cache (~4 GB on disk).
 
-That extra pulls torch, and the first run downloads the BGE-M3 weights into the HuggingFace cache (~4 GB on disk). To skip both, switch to keyword retrieval — plain `uv sync` is then enough:
+### Running it with nothing installed and no key
+
+Every part of the pipeline has an offline stand-in. Plain `uv sync` and these three settings run the real agent loop, the real tool call and real BM25 retrieval, with only the model's wording replaced:
 
 ```yaml
+llm:        { provider: mock }
 embeddings: { provider: null }
 retrieval:  { strategy: keyword }
 ```
+
+`uv run pytest` also passes on a bare `uv sync`, with no extras and no key.
 
 | Command | What it does |
 | --- | --- |
@@ -65,6 +70,43 @@ retrieval:  { strategy: keyword }
 | `uv run ruff format src tests` | format |
 
 Every command runs inside the locked environment, so there is nothing to activate. `uv run python -m src.main ...` is equivalent to `uv run rag-app ...`.
+
+## Docker
+
+```bash
+docker compose up --build
+```
+
+The UI is then on `http://localhost:7860`. Put `BBL_LLM_API_KEY` in `.env` first — compose reads it at runtime and it never enters an image layer.
+
+The image is built in two stages, each on the base image suited to its job. The build stage uses `ghcr.io/astral-sh/uv:python3.11-bookworm-slim`, so uv is already present and `uv sync --frozen` reproduces `uv.lock` exactly with no bootstrap step; dependencies resolve in a layer keyed only on `pyproject.toml` and `uv.lock`, so editing code does not reinstall them. The runtime stage is plain `python:3.11-slim-bookworm` and receives only the finished `/app/.venv`, leaving uv, the build caches, and the toolchain behind. It runs as a non-root user.
+
+**The default image leaves out the embedding stack**, which is what keeps it at roughly 510 MB of layers and about a minute to build. It runs BM25 retrieval, which needs no model:
+
+| Service | Retrieval | Layers | Notes |
+| --- | --- | --- | --- |
+| `rag-app` (default) | `keyword` | ~510 MB | no torch, no downloads |
+| `rag-app-semantic` (profile `semantic`) | `semantic` | ~2.0 GB | `--build-arg EXTRAS=bge-flag`; then ~2 GB of BGE-M3 weights into a named volume on first run |
+
+The semantic image installs **CPU-only torch**. On Linux the default PyPI wheel drags in the entire CUDA runtime — 43 `nvidia-*` packages and several GB — which is dead weight in a CPU inference image, so `pyproject.toml` points torch at the PyTorch CPU index for `sys_platform == 'linux'` only. Windows and macOS still resolve the identical `2.13.0` wheels from PyPI, so local development is unaffected. The Linux download drops from multiple GB to 183 MB.
+
+```bash
+docker compose --profile semantic up --build
+```
+
+Container settings live in their own files rather than in `config.yml`, which stays exactly as it is for local runs. A config may name a base with `extends:`, and its own keys are merged over it, so each override file holds only what actually differs:
+
+| File | Extends | Overrides |
+| --- | --- | --- |
+| [`config.yml`](config.yml) | — | the local defaults |
+| [`config.docker.yml`](config.docker.yml) | `config.yml` | binds `0.0.0.0`, no browser, keyword retrieval, embeddings off |
+| [`config.docker.semantic.yml`](config.docker.semantic.yml) | `config.docker.yml` | puts semantic retrieval and BGE-M3 back |
+
+The image selects one with `-c`: `ENTRYPOINT ["rag-app", "-c", "config.docker.yml"]`, which the semantic service replaces with its own. Passing arguments runs the CLI; passing none serves the UI, the same contract as `rag-app`.
+
+```bash
+docker run --rm --env-file .env rag-app-assessment:latest "How much parental leave am I entitled to?"
+```
 
 ## The assessment gateway (gpt-5-mini)
 
@@ -87,12 +129,12 @@ The subtle one: gpt-5-mini is a reasoning model, and a `function_call` replayed 
 
 ### Living inside 1000 tokens/minute
 
-The grant is metered, and gpt-5-mini bills hidden reasoning tokens — a three-word answer cost 192 of them at default effort. Four settings keep a full query inside roughly 3,600 tokens:
+The grant is metered, and gpt-5-mini bills hidden reasoning tokens — a three-word answer cost 192 of them at default effort. Four settings keep the prompt for a full query near 3,100–3,250 tokens, and the whole two-agent round trip inside roughly 4,000–4,900:
 
 - `reasoning_effort: low` — reasoning tokens per call drop about 3×
 - `parallel_tool_calls: false` and `max_tool_calls: 1` — every parallel search replays its **entire** result into the next request; five searches at once cost 4,302 tokens on a single call
 - `top_k` is not exposed in the tool schema, so the model cannot raise the snippet count past the configured budget
-- `max_snippet_chars: 700` — one full chunk, without the metered tail
+- `max_snippet_chars: 1400` — matches `chunking.max_chars`, so a whole policy section reaches the writer rather than half of one
 
 On a 429 the provider honours the gateway's `Retry-After` (60s) rather than an exponential backoff that starts in milliseconds and could never clear a per-minute window.
 
@@ -116,7 +158,7 @@ To use any OpenAI-compatible endpoint instead, set `llm.provider: openai` and po
 
 ## Configuration
 
-Everything is driven by [`config.yml`](config.yml); secrets are read from the environment via the `api_key_env` indirection. Values support `${VAR}` and `${VAR:-default}` expansion. Point at a different file with `--config path/to/config.yml`.
+Everything is driven by [`config.yml`](config.yml); secrets are read from the environment via the `api_key_env` indirection. Values support `${VAR}` and `${VAR:-default}` expansion, and a file may layer over another with `extends:`. Point at a different file with `-c path/to/config.yml`.
 
 | Section | What it controls |
 | --- | --- |
@@ -139,15 +181,15 @@ Everything is driven by [`config.yml`](config.yml); secrets are read from the en
 
 BM25 scores are normalised to 0–1, so `retrieval.min_score` acts as a relative floor there. Cosine values are kept raw and gated by `retrieval.semantic.min_similarity` instead. Chunks with no signal at all are dropped before ranking, so an off-topic question correctly returns nothing.
 
-**`min_similarity` is model-specific and must be re-measured if the embedding model changes.** An absolute cosine floor does not transfer between models. On this corpus BGE-M3 puts on-topic hits at 0.46–0.73 and off-topic queries at or below 0.33, so 0.40 sits in the middle of a clean gap: every relevant chunk survives and nothing irrelevant leaks. A floor of 0.60 — plausible-looking, and correct for some other models — would admit only 1 of 16 chunks and silently starve the Report Generator no matter what `top_k` said.
+**`min_similarity` is model-specific and must be re-measured whenever the embedding model *or the corpus* changes.** An absolute cosine floor does not transfer. Measured over 13 on-topic and 10 off-topic questions, BGE-M3 puts on-topic best hits at 0.53–0.73 and off-topic best hits at or below 0.44, so `0.48` sits in the middle of a clean gap: every relevant chunk survives and nothing irrelevant leaks. The floor is doing real work — at 0.40 four of the ten off-topic questions leak a chunk, because a 24-section handbook offers more surface for a coincidental match. *"How do I train for a marathon?"* scores 0.44 against **TRAINING AND PROFESSIONAL DEVELOPMENT** on the strength of one shared word. Set it too high instead and retrieval silently starves the Report Generator no matter what `top_k` says.
 
-Why `hybrid` is worth considering: BM25 alone cannot bridge vocabulary. Ask *"How do I get money back after a trip overseas?"* and it misses the reimbursement section entirely — `money`, `overseas` and `abroad` appear nowhere in the corpus, while `trip` appears inside the corporate-card section, which then ranks first. Embeddings fix that. Conversely BM25 is sharper on the exact tokens this corpus is full of — `USD 220`, `Tier 1`, `grade 5`, named portals — which embeddings blur.
+Why `hybrid` is worth considering: BM25 alone cannot bridge vocabulary. Ask *"How do I get money back after a trip overseas?"* and it misses the reimbursement section entirely — `overseas` appears nowhere in the corpus, and `money` appears once, inside the financial-crime section. BM25 ranks **SICK LEAVE AND MEDICAL ABSENCE** first, on nothing more than incidental function words. Embeddings fix that. Conversely BM25 is sharper on the exact tokens this corpus is full of — `USD 220`, `Tier 1`, `grade 5`, named portals — which embeddings blur.
 
 ## Embedding pipeline
 
 Everything runs locally through [`BGEM3EmbeddingProvider`](src/embeddings/bge_m3.py); there is no vector database.
 
-1. `knowledge_base.txt` is chunked (16 paragraph chunks by default)
+1. `knowledge_base.txt` is chunked (24 paragraph chunks by default — one per policy section, since `max_chars: 1400` clears the longest section at 1,318 characters)
 2. Chunks are embedded in batches to **1024-dim** dense vectors. Encoding is blocking work, so it runs in a worker thread behind a lock — one in-process model must not be entered concurrently
 3. Vectors are written verbatim to `data/index/knowledge_base.npz`, beside a Pydantic-validated `knowledge_base.json` manifest
 4. Later runs load the `.npz` and skip embedding entirely
@@ -174,16 +216,46 @@ Hosted embeddings remain available by pointing `embeddings.provider` at `azure_o
 
 ## Branches
 
-| Branch | Orchestration |
-| --- | --- |
-| `main` | LangGraph `StateGraph` |
-| `framework-free` | Plain `asyncio`, no LangChain/LangGraph dependency |
+| Branch | Orchestration | Dependencies |
+| --- | --- | --- |
+| `main` (this one) | LangGraph `StateGraph` | `langgraph` |
+| `framework-free` | Plain `asyncio` | none for orchestration |
 
-Only the orchestration layer differs. Everything else — providers, retrieval, tools, agents, prompts, config — is identical, which is the point of keeping the framework at the edge of the design.
+Only the orchestration layer differs — one module and one registry entry. Providers, retrieval, tools, agents, prompts and config are identical, which is the point of keeping the framework at the edge of the design: here the workflow is a two-node graph in [`langgraph_pipeline.py`](src/orchestration/langgraph_pipeline.py), with a `WorkflowState` TypedDict carrying the retrieval result between them.
+
+```python
+graph.add_node("retrieve", self._retrieve)
+graph.add_node("report", self._report)
+graph.add_edge("retrieve", "report")
+```
+
+At this size the framework buys little over two awaits — which is what the `framework-free` branch demonstrates. It starts to pay off with branching, retries per node, checkpointing, or human-in-the-loop pauses, none of which this workflow has yet.
 
 ## Sample output
 
-`docs/screenshots/` is where the per-query screenshots go. They should be captured with a real model configured — the mock provider's answers are placeholders and would not show the synthesis quality the Report Generator is judged on.
+Captured from the web interface against **gpt-5-mini** through the assessment gateway, with semantic retrieval over BGE-M3. Every claim carries the `[kb-nnnn]` id of the chunk it came from.
+
+**What is the policy on international travel?**
+
+![Answer to the international travel question](docs/screenshots/2.png)
+
+![Retrieval trace for the international travel question](docs/screenshots/2-1.png)
+
+**How do I get reimbursed after a business trip?**
+
+![Answer to the reimbursement question](docs/screenshots/3.png)
+
+![Retrieval trace for the reimbursement question](docs/screenshots/3-1.png)
+
+**What are the rules for working from home and keeping customer data safe?** — the interesting one: the answer is stitched from four separate policy sections.
+
+![Answer to the working from home question](docs/screenshots/1.png)
+
+![Retrieval trace for the working from home question](docs/screenshots/1-1.png)
+
+The second image in each pair is the **Retrieval trace** panel: the search the Data Retriever actually issued, the snippets it handed over with their cosine scores, and its coverage note — including what it could *not* find, which is what stops the Report Generator inventing the rest.
+
+They are captured with a real model configured; the mock provider's answers are placeholders and would not show the synthesis quality the Report Generator is judged on.
 
 ## Notes and scope
 

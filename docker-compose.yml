@@ -1,0 +1,45 @@
+# `docker compose up` serves the UI on http://localhost:7860.
+#
+#   rag-app           default. BM25 retrieval, no torch, quick to build.
+#   rag-app-semantic  profile "semantic". Adds BGE-M3 and pulls ~2 GB of
+#                     weights into a named volume on first run.
+name: rag-app-assessment
+
+services:
+  rag-app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: rag-app-assessment:latest
+    ports:
+      - "7860:7860"
+    env_file:
+      - path: .env
+        required: false
+    volumes:
+      - ./logs:/app/logs
+    restart: unless-stopped
+
+  rag-app-semantic:
+    profiles: ["semantic"]
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        EXTRAS: bge-flag
+    image: rag-app-assessment:semantic
+    entrypoint: ["rag-app", "-c", "config.docker.semantic.yml"]
+    ports:
+      - "7860:7860"
+    env_file:
+      - path: .env
+        required: false
+    volumes:
+      - ./logs:/app/logs
+      - hf-cache:/home/app/.cache/huggingface
+      - index:/app/data/index
+    restart: unless-stopped
+
+volumes:
+  hf-cache:
+  index:

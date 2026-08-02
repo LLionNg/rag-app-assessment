@@ -1,0 +1,32 @@
+# The local virtualenv is Windows-built and would shadow the image's own .venv
+.venv/
+venv/
+
+.git/
+.gitignore
+.github/
+
+# Secrets never enter an image layer; compose passes them at runtime
+.env
+config.local.yml
+
+__pycache__/
+*.py[cod]
+*.egg-info/
+build/
+dist/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+
+logs/
+docs/
+*.md
+!README.md
+
+# Derived index: rebuilt inside the container from knowledge_base.txt
+data/index/
+
+.idea/
+.vscode/
+.DS_Store

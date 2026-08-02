@@ -1,0 +1,13 @@
+# Container overrides. Everything not listed here comes from config.yml.
+extends: config.yml
+
+ui:
+  host: 0.0.0.0 # 127.0.0.1 inside a container is unreachable from the host
+  open_browser: false
+
+# The default image ships no torch, so BM25 is the only retrieval available.
+retrieval:
+  strategy: keyword
+
+embeddings:
+  provider: null

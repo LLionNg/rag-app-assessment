@@ -42,11 +42,7 @@ class LocalModelOptions(BaseModel):
 
 
 class ProviderConfig(BaseModel):
-    """Connection settings for one LLM or embedding provider.
-
-    API keys are never stored here: `api_key_env` names the environment
-    variable the provider reads at construction time.
-    """
+    """Connection settings for one LLM or embedding provider."""
 
     model: str
     api_key_env: str | None = None
@@ -63,13 +59,10 @@ class ProviderConfig(BaseModel):
     auth_header: str = "api-key"
     # Reasoning models bill hidden reasoning tokens; "low" cuts them sharply.
     reasoning_effort: Literal["minimal", "low", "medium", "high"] | None = None
-    # Each parallel tool call replays its whole result into the next request, so
-    # under a tight token budget these two caps matter more than they look.
     parallel_tool_calls: bool | None = None
     max_tool_calls: int | None = Field(default=None, gt=0)
     extra_body: dict[str, Any] = Field(default_factory=dict)
-    # Expected embedding width, enforced on every batch. BGE-M3 dense is 1024.
-    dimensions: int | None = Field(default=None, gt=0)
+    dimensions: int | None = Field(default=None, gt=0)  # BGE-M3 dense is 1024.
     options: LocalModelOptions = Field(default_factory=LocalModelOptions)
 
     def api_key(self) -> str | None:
@@ -210,25 +203,55 @@ class Settings(BaseModel):
 
 
 def load_settings(path: str | Path = DEFAULT_CONFIG_PATH) -> Settings:
-    """Load `config.yml`, expanding `${VAR}` / `${VAR:-default}` placeholders."""
+    """Load `config.yml`, following `extends:` and expanding `${VAR}` placeholders."""
     load_dotenv(override=False)
 
-    config_path = Path(path)
-    if not config_path.is_file():
-        raise ConfigError(f"Config file not found: {config_path}")
-
     try:
-        raw = yaml.safe_load(config_path.read_text(encoding="utf-8")) or {}
-    except yaml.YAMLError as exc:
-        raise ConfigError(f"Invalid YAML in {config_path}: {exc}") from exc
-
-    if not isinstance(raw, dict):
-        raise ConfigError(f"Expected a mapping at the root of {config_path}")
+        raw = _read_layered(Path(path), seen=[])
+    except ValidationError as exc:
+        raise ConfigError(f"Invalid configuration in {path}:\n{exc}") from exc
 
     try:
         return Settings.model_validate(_expand_env(raw))
     except ValidationError as exc:
-        raise ConfigError(f"Invalid configuration in {config_path}:\n{exc}") from exc
+        raise ConfigError(f"Invalid configuration in {path}:\n{exc}") from exc
+
+
+def _read_layered(path: Path, seen: list[Path]) -> dict[str, Any]:
+    """Read one config, merging it over the file named by its `extends:` key."""
+    if not path.is_file():
+        raise ConfigError(f"Config file not found: {path}")
+
+    resolved = path.resolve()
+    if resolved in seen:
+        chain = " -> ".join(p.name for p in [*seen, resolved])
+        raise ConfigError(f"Circular extends chain: {chain}")
+
+    try:
+        raw = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
+    except yaml.YAMLError as exc:
+        raise ConfigError(f"Invalid YAML in {path}: {exc}") from exc
+
+    if not isinstance(raw, dict):
+        raise ConfigError(f"Expected a mapping at the root of {path}")
+
+    base_name = raw.pop("extends", None)
+    if base_name is None:
+        return raw
+
+    base_path = (path.parent / str(base_name)).resolve()
+    return _deep_merge(_read_layered(base_path, [*seen, resolved]), raw)
+
+
+def _deep_merge(base: dict[str, Any], override: dict[str, Any]) -> dict[str, Any]:
+    merged = dict(base)
+    for key, value in override.items():
+        current = merged.get(key)
+        if isinstance(current, dict) and isinstance(value, dict):
+            merged[key] = _deep_merge(current, value)
+        else:
+            merged[key] = value
+    return merged
 
 
 def _expand_env(value: Any) -> Any:
